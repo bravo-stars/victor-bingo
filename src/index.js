@@ -1,5 +1,7 @@
+
 const express = require("express");
 const { Bot } = require("grammy");
+const { testDbConnection } = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +34,7 @@ if (BOT_TOKEN) {
   console.log("BOT_TOKEN is not set yet.");
 }
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log(`Victor Bingo server running on port ${PORT}`);
+  await testDbConnection();
 });
