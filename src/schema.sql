@@ -62,3 +62,5 @@ CREATE INDEX IF NOT EXISTS round_tickets_round_idx ON round_tickets(round_id);
 CREATE INDEX IF NOT EXISTS drawn_balls_round_idx ON drawn_balls(round_id);
 CREATE INDEX IF NOT EXISTS wallet_transactions_user_idx ON wallet_transactions(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS payment_requests_status_idx ON payment_requests(status, created_at);
+
+ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS payout_account TEXT;
