@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,30 +8,59 @@
 <title>Victor Bingo</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:16px;background:#101827;color:#f7f8fb;font-family:Arial,sans-serif}
-header{text-align:center;margin:6px auto 18px}h1{margin:0;color:#f5c542;font-size:28px}header p{color:#aebbd0;margin:7px 0}
-.wrap{max-width:720px;margin:auto}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat,.panel{background:#1d2b40;border:1px solid #2c405c;border-radius:14px;padding:12px;text-align:center}.stat small{display:block;color:#aebbd0;font-size:11px;margin-bottom:6px}.stat strong{font-size:19px;color:#f5c542}
-.panel{margin-top:12px;text-align:left}.panel h2{font-size:17px;margin:0 0 10px}.muted{color:#aebbd0;font-size:13px}.primary,button{border:0;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer}.primary{width:100%;background:#f5c542;color:#101827;font-size:16px;margin-top:10px}.secondary{background:#334a68;color:white}.primary:disabled,button:disabled{opacity:.45;cursor:not-allowed}
-#balls{display:flex;flex-wrap:wrap;gap:7px}.ball{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#334a68;font-weight:bold}.ball.latest{background:#f5c542;color:#101827;transform:scale(1.08)}
-.ticket{border:1px solid #39516f;border-radius:12px;padding:10px;margin-top:10px}.ticket h3{margin:0 0 8px;color:#65d69a;font-size:14px}.bingo{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.cell{background:#2b405c;border-radius:5px;text-align:center;padding:8px 2px;font-size:13px}.cell.hit{background:#237b58;color:white}.cell.free{background:#f5c542;color:#101827}
-.row{display:flex;gap:8px}.row>*{min-width:0;flex:1}input,select{width:100%;padding:11px;border:1px solid #435a78;border-radius:9px;background:#101d30;color:white;margin:5px 0 9px}label{font-size:12px;color:#bdc9d9}
-.notice{padding:10px;border-radius:9px;background:#253a55;margin-top:10px;font-size:13px}.winner{border:1px solid #d7b84a;background:#3a321b}.hidden{display:none!important}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions button{width:100%}
-@media(max-width:480px){body{padding:11px}.stats{grid-template-columns:repeat(2,1fr)}.stat strong{font-size:18px}.cell{padding:7px 1px;font-size:12px}}
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#101827;color:#f7f8fb;font-family:Arial,sans-serif}
+header{text-align:center;margin:6px auto 18px}
+h1{margin:0;color:#f5c542;font-size:28px}
+header p{color:#aebbd0;margin:7px 0}
+.wrap{max-width:720px;margin:auto}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat,.panel{background:#1d2b40;border:1px solid #2c405c;border-radius:14px;padding:12px;text-align:center}
+.stat small{display:block;color:#aebbd0;font-size:11px;margin-bottom:6px}
+.stat strong{font-size:19px;color:#f5c542}
+.panel{margin-top:12px;text-align:left}
+.panel h2{font-size:17px;margin:0 0 10px}
+.muted{color:#aebbd0;font-size:13px}
+.primary,button{border:0;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer}
+.primary{width:100%;background:#f5c542;color:#101827;font-size:16px;margin-top:10px}
+.secondary{background:#334a68;color:white}
+.primary:disabled,button:disabled{opacity:.45;cursor:not-allowed}
+#balls{display:flex;flex-wrap:wrap;gap:7px}
+.ball{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#334a68;font-weight:bold}
+.ball.latest{background:#f5c542;color:#101827;transform:scale(1.08)}
+.ticket{border:1px solid #39516f;border-radius:12px;padding:10px;margin-top:10px}
+.ticket h3{margin:0 0 8px;color:#65d69a;font-size:14px}
+.bingo{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.cell{background:#2b405c;border-radius:5px;text-align:center;padding:8px 2px;font-size:13px}
+.cell.hit{background:#237b58;color:white}
+.cell.free{background:#f5c542;color:#101827}
+.notice{padding:10px;border-radius:9px;background:#253a55;margin-top:10px;font-size:13px}
+.winner{border:1px solid #d7b84a;background:#3a321b}
+.hidden{display:none!important}
+@media(max-width:480px){
+body{padding:11px}
+.stats{grid-template-columns:repeat(3,1fr)}
+.stat strong{font-size:18px}
+.cell{padding:7px 1px;font-size:12px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header><h1>🎉 VICTOR BINGO</h1><p>Play fair. Win together.</p></header>
+
 <div class="stats">
  <div class="stat"><small>ROOM</small><strong>VIP 💰</strong></div>
  <div class="stat"><small>SOLD</small><strong id="sold">0</strong></div>
- <div class="stat"><small>TIME</small><strong id="time">--</strong></div>
- <div class="stat"><small>WALLET</small><strong id="balance">0.00</strong></div>
+ <div class="stat"><small>TIME</small><strong id="time">30s</strong></div>
 </div>
+
 <div id="login" class="panel">
- <h2>Open Victor Bingo in Telegram</h2><p class="muted">For account security, sign in by opening the Mini App from the Victor Bingo Telegram bot.</p>
+ <h2>Open Victor Bingo in Telegram</h2>
+ <p class="muted">For account security, sign in by opening the Mini App from the Victor Bingo Telegram bot.</p>
  <a href="#" id="botlink" class="hidden" style="color:#f5c542">Open Telegram bot</a>
 </div>
+
 <div id="game" class="hidden">
  <section class="panel">
   <h2 id="roundTitle">Round loading…</h2>
@@ -38,64 +68,165 @@ header{text-align:center;margin:6px auto 18px}h1{margin:0;color:#f5c542;font-siz
   <button class="primary" id="buy" onclick="buyTicket()">🎟️ BUY RANDOM CARTELA · 10 ETB</button>
   <div id="message" class="notice">Connecting to game server…</div>
  </section>
- <section class="panel"><h2>🔵 Called Balls <span class="muted" id="ballCount">(0/75)</span></h2><div id="balls"></div></section>
- <section class="panel"><h2>🎫 My Cartelas</h2><div id="tickets"><p class="muted">No Cartela purchased in this round.</p></div></section>
- <section class="panel winner hidden" id="winnerPanel"><h2>🏆 ROUND RESULT</h2><div id="winners"></div><p id="prizeInfo" class="muted"></p></section>
- <section class="panel"><h2>💳 Wallet · Deposit / Withdrawal</h2>
-  <p class="muted">Payment account name: <b id="payName">Samuel Adino</b></p>
-  <p class="muted">Telebirr: <b id="tele">0945723383</b><br>CBE Birr: <b id="cbe">0945723383</b></p>
-  <div class="row"><div><label>Request</label><select id="payKind"><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option></select></div><div><label>Method</label><select id="payMethod"><option value="telebirr">Telebirr</option><option value="cbe">CBE Birr</option></select></div></div>
-  <label>Amount (ETB)</label><input id="payAmount" type="number" min="1" step="1" placeholder="Enter amount">
-  <div id="depositFields"><label>Payment transaction/reference number (optional)</label><input id="senderRef" placeholder="SMS / transaction reference"></div>
-  <div id="withdrawFields" class="hidden"><label>Your Telebirr / CBE account number</label><input id="payoutAccount" placeholder="Account or phone number"></div>
-  <button class="primary" onclick="submitPayment()">Submit Request</button>
-  <p class="muted">Deposits are credited only after the admin verifies the payment. Withdrawal amount is held while the request is reviewed.</p>
+
+ <section class="panel">
+  <h2>🔵 Called Balls <span class="muted" id="ballCount">(0/75)</span></h2>
+  <div id="balls"></div>
  </section>
- <section class="panel"><h2>📜 Wallet History</h2><div id="history" class="muted">Loading…</div></section>
+
+ <section class="panel">
+  <h2>🎫 My Cartelas</h2>
+  <div id="tickets"><p class="muted">No Cartela purchased in this round.</p></div>
+ </section>
+
+ <section class="panel winner hidden" id="winnerPanel">
+  <h2>🏆 ROUND RESULT</h2>
+  <div id="winners"></div>
+  <p id="prizeInfo" class="muted"></p>
+ </section>
 </div>
 </div>
+
 <script>
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
-const headers={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
+
+const headers={
+ "Content-Type":"application/json",
+ "X-Telegram-Init-Data":tg?.initData||""
+};
+
 const $=id=>document.getElementById(id);
 let currentRound=null,lastRoundId=null;
+
 const money=c=>(Number(c||0)/100).toFixed(2)+" ETB";
+
 function message(text){$("message").textContent=text;}
-async function api(url,options={}){const r=await fetch(url,{...options,headers:{...headers,...(options.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Request failed");return d;}
-async function loadConfig(){try{const c=await fetch("/api/config").then(r=>r.json());$("payName").textContent=c.paymentName;$("tele").textContent=c.telebirrNumber;$("cbe").textContent=c.cbeNumber;if(c.botUrl){$("botlink").href=c.botUrl;$("botlink").classList.remove("hidden");}}catch(e){}}
-function renderCard(ticket,balls){const called=new Set(balls);let cells="";ticket.card.forEach((row,r)=>row.forEach((n,c)=>{const free=n===0,hit=free||called.has(n);cells+=`<div class="cell ${free?"free":hit?"hit":""}">${free?"FREE":n}</div>`;}));return `<div class="ticket"><h3>Cartela #${ticket.cardNumber}</h3><div class="bingo">${cells}</div></div>`;}
+
+async function api(url,options={}){
+ const r=await fetch(url,{
+  ...options,
+  headers:{...headers,...(options.headers||{})}
+ });
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(d.error||"Request failed");
+ return d;
+}
+
+async function loadConfig(){
+ try{
+  const c=await fetch("/api/config").then(r=>r.json());
+  if(c.botUrl){
+   $("botlink").href=c.botUrl;
+   $("botlink").classList.remove("hidden");
+  }
+ }catch(e){}
+}
+
+function renderCard(ticket,balls){
+ const called=new Set(balls);
+ let cells="";
+ ticket.card.forEach(row=>row.forEach(n=>{
+  const free=n===0,hit=free||called.has(n);
+  cells+=`<div class="cell ${free?"free":hit?"hit":""}">${free?"FREE":n}</div>`;
+ }));
+ return `<div class="ticket">
+ <h3>Cartela #${ticket.cardNumber}</h3>
+ <div class="bingo">${cells}</div>
+ </div>`;
+}
+
 function renderState(s){
- const round=s.round;currentRound=round;
- $("balance").textContent=(Number(s.balanceCents||0)/100).toFixed(2);
+ const round=s.round;
+ currentRound=round;
+
  $("sold").textContent=round?.sold??0;
  $("time").textContent=round?.countdown==null?"DRAW":round.countdown+"s";
- $("roundTitle").textContent=round?("ROUND #"+round.id+" · "+round.status.toUpperCase()):"Preparing first round…";
+
+ $("roundTitle").textContent=round
+  ?("ROUND #"+round.id+" · "+round.status.toUpperCase())
+  :"Preparing first round…";
+
  $("buy").disabled=!round||round.status!=="waiting"||round.countdown<=0;
- $("buy").textContent=round?.status==="waiting"?"🎟️ BUY RANDOM CARTELA · 10 ETB":"WAIT FOR NEXT ROUND";
- $("roundHint").textContent=round?.status==="waiting"?"Choose a Cartela before the server countdown reaches zero.":round?.status==="drawing"?"Game is live. Balls are drawn by the server.":"A new round will start automatically after the result.";
+
+ $("buy").textContent=round?.status==="waiting"
+  ?"🎟️ BUY RANDOM CARTELA · 10 ETB"
+  :"WAIT FOR NEXT ROUND";
+
+ $("roundHint").textContent=round?.status==="waiting"
+  ?"Choose a Cartela before the server countdown reaches zero."
+  :round?.status==="drawing"
+  ?"Game is live. Balls are drawn by the server."
+  :"A new round will start automatically after the result.";
+
  $("ballCount").textContent="("+s.balls.length+"/75)";
- $("balls").innerHTML=s.balls.map((n,i)=>`<span class="ball ${i===s.balls.length-1?"latest":""}">${n}</span>`).join("")||'<span class="muted">No balls drawn yet.</span>';
- $("tickets").innerHTML=s.tickets.length?s.tickets.map(t=>renderCard(t,s.balls)).join(""):'<p class="muted">No Cartela purchased in this round.</p>';
+
+ $("balls").innerHTML=s.balls.map((n,i)=>
+  `<span class="ball ${i===s.balls.length-1?"latest":""}">${n}</span>`
+ ).join("")||'<span class="muted">No balls drawn yet.</span>';
+
+ $("tickets").innerHTML=s.tickets.length
+  ?s.tickets.map(t=>renderCard(t,s.balls)).join("")
+  :'<p class="muted">No Cartela purchased in this round.</p>';
+
  const winnerPanel=$("winnerPanel");
+
  if(round?.status==="completed"&&round.winners?.length){
-   winnerPanel.classList.remove("hidden");
-   $("winners").innerHTML=round.winners.map(w=>`<p><b>${escapeHtml(w.name)}</b> · Cartela #${w.cardNumber} · <b>${money(w.prizeCents)}</b></p>`).join("");
-   $("prizeInfo").textContent="Prize Pool: "+money(round.prizePoolCents)+" · House: "+money(round.houseCents)+" · Result display: "+round.countdown+"s";
- }else{winnerPanel.classList.add("hidden");}
- if(lastRoundId!==round?.id){lastRoundId=round?.id;loadHistory();}
+  winnerPanel.classList.remove("hidden");
+
+  $("winners").innerHTML=round.winners.map(w=>
+   `<p><b>${escapeHtml(w.name)}</b> · Cartela #${w.cardNumber} · <b>${money(w.prizeCents)}</b></p>`
+  ).join("");
+
+  $("prizeInfo").textContent=
+   "Prize Pool: "+money(round.prizePoolCents)+
+   " · House: "+money(round.houseCents);
+ }else{
+  winnerPanel.classList.add("hidden");
+ }
 }
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-async function refresh(){try{const s=await api("/api/state");$("login").classList.add("hidden");$("game").classList.remove("hidden");renderState(s);}catch(e){if(e.message.includes("Open the Mini App")){$("login").classList.remove("hidden");$("game").classList.add("hidden");}else message(e.message);}}
-async function buyTicket(){ $("buy").disabled=true;try{const r=await api("/api/tickets",{method:"POST",body:"{}"});message("Cartela #"+r.ticket.cardNumber+" purchased. 10 ETB deducted from Wallet.");await refresh();}catch(e){message(e.message);$("buy").disabled=false;}}
-async function submitPayment(){
- const kind=$("payKind").value,method=$("payMethod").value,amount=Number($("payAmount").value);
- const body={kind,method,amount,senderReference:$("senderRef").value,payoutAccount:$("payoutAccount").value};
- try{const r=await api("/api/payments",{method:"POST",body:JSON.stringify(body)});message("Request #"+r.requestId+" submitted. Status: pending.");$("payAmount").value="";await refresh();await loadHistory();}catch(e){message(e.message);}
+
+function escapeHtml(s){
+ return String(s).replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[c]));
 }
-async function loadHistory(){try{const d=await api("/api/wallet/history");$("history").innerHTML=d.transactions.length?d.transactions.map(t=>`<p>${escapeHtml(t.note||t.type)} · ${money(t.amount_cents)} · ${new Date(t.created_at).toLocaleString()}</p>`).join(""):"No transactions yet.";}catch(e){$("history").textContent=e.message;}}
-$("payKind").addEventListener("change",()=>{$("depositFields").classList.toggle("hidden",$("payKind").value!=="deposit");$("withdrawFields").classList.toggle("hidden",$("payKind").value!=="withdrawal");});
-loadConfig();refresh();setInterval(refresh,1000);
+
+async function refresh(){
+ try{
+  const s=await api("/api/state");
+  $("login").classList.add("hidden");
+  $("game").classList.remove("hidden");
+  renderState(s);
+ }catch(e){
+  if(e.message.includes("Open the Mini App")){
+   $("login").classList.remove("hidden");
+   $("game").classList.add("hidden");
+  }else{
+   if($("message"))message(e.message);
+  }
+ }
+}
+
+async function buyTicket(){
+ $("buy").disabled=true;
+ try{
+  const r=await api("/api/tickets",{
+   method:"POST",
+   body:"{}"
+  });
+  message("Cartela #"+r.ticket.cardNumber+
+   " purchased. 10 ETB deducted from Wallet.");
+  await refresh();
+ }catch(e){
+  message(e.message);
+  $("buy").disabled=false;
+ }
+}
+
+loadConfig();
+refresh();
+setInterval(refresh,1000);
 </script>
 </body>
 </html>
