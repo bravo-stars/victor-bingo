@@ -1,4 +1,6 @@
 const { Pool } = require("pg");
+const fs = require("fs");
+const path = require("path");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,10 +15,9 @@ async function testDbConnection() {
     console.error("DATABASE_URL is missing!");
     return false;
   }
-
   try {
-    const result = await pool.query("SELECT NOW() AS current_time");
-    console.log("Neon Database connected successfully:", result.rows[0].current_time);
+    await pool.query("SELECT 1");
+    console.log("Neon Database connected successfully.");
     return true;
   } catch (error) {
     console.error("Neon Database connection failed:", error.message);
@@ -24,4 +25,10 @@ async function testDbConnection() {
   }
 }
 
-module.exports = { pool, testDbConnection };
+async function migrateDatabase() {
+  const schema = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
+  await pool.query(schema);
+  console.log("Victor Bingo database schema is ready.");
+}
+
+module.exports = { pool, testDbConnection, migrateDatabase };
