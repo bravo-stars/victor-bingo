@@ -36,6 +36,7 @@ app.post("/api/tickets", requireTelegramUser, async (req,res) => {
       USER_NOT_FOUND:"Player account not found.",
       ROUND_CLOSED:"This round is closed. Wait for the next round.",
       INSUFFICIENT_BALANCE:"Your Wallet balance is not enough. Please deposit first.",
+      TICKET_LIMIT:"You can buy a maximum of 2 Cartelas in each round.",
       ROOM_FULL:"All Cartela numbers are sold for this round."
     };
     res.status(400).json({error:messages[error.message] || "Could not buy Cartela."});
