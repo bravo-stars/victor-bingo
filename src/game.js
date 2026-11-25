@@ -171,7 +171,7 @@ async function drawNextBall(client, roundId) {
   }
 }
 
-async function buyTicket(telegramId) {
+async function buyTicket(telegramId, requestedCardNumber = null) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -210,7 +210,17 @@ async function buyTicket(telegramId) {
       .filter(n => !used.has(n));
     if (!available.length) throw new Error("ROOM_FULL");
 
-    const cardNumber = available[crypto.randomInt(available.length)];
+    let cardNumber;
+    if (requestedCardNumber !== null && requestedCardNumber !== undefined) {
+      const requested = Number(requestedCardNumber);
+      if (!Number.isInteger(requested) || requested < 1 || requested > 600) {
+        throw new Error("INVALID_CARD");
+      }
+      if (used.has(requested)) throw new Error("CARD_SOLD");
+      cardNumber = requested;
+    } else {
+      cardNumber = available[crypto.randomInt(available.length)];
+    }
     const card = makeCard();
 
     await client.query(
@@ -252,7 +262,7 @@ async function getGameState(user) {
     };
   }
 
-  const [tickets, balls, sold] = await Promise.all([
+  const [tickets, balls, sold, soldCards] = await Promise.all([
     pool.query(
       "SELECT id,card_number,card FROM round_tickets WHERE round_id=$1 AND user_id=$2 ORDER BY id",
       [round.id, user.id]
@@ -264,7 +274,8 @@ async function getGameState(user) {
     pool.query(
       "SELECT COUNT(*)::int AS n FROM round_tickets WHERE round_id=$1",
       [round.id]
-    )
+    ),
+    pool.query("SELECT card_number FROM round_tickets WHERE round_id=$1", [round.id])
   ]);
 
   let countdown = null;
@@ -290,6 +301,7 @@ async function getGameState(user) {
       countdown,
       drawCountdown,
       sold: Number(sold.rows[0].n),
+      soldCardNumbers: soldCards.rows.map(r => Number(r.card_number)),
       winners: round.winners || [],
       prizePoolCents: Number(round.prize_pool_cents || 0),
       houseCents: Number(round.house_cents || 0)
