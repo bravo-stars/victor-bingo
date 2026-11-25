@@ -216,6 +216,10 @@ if (BOT_TOKEN) {
     }
   });
   bot.command("start", async ctx => {
+    await pool.query(
+      "INSERT INTO users(telegram_id,first_name,username) VALUES($1,$2,$3) ON CONFLICT(telegram_id) DO UPDATE SET first_name=EXCLUDED.first_name,username=EXCLUDED.username",
+      [String(ctx.from.id),ctx.from.first_name || "Player",ctx.from.username || null]
+    );
     const keyboard = new InlineKeyboard().webApp("🎮 PLAY VICTOR BINGO", BASE_URL + "/").row()
       .text("💳 Deposit", "wallet:deposit").text("💸 Withdrawal", "wallet:withdrawal").row()
       .text("📜 Wallet History", "wallet:history").text("💰 Balance", "wallet:balance");
