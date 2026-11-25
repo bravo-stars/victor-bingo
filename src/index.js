@@ -18,7 +18,8 @@ app.get("/api/config", (req,res) => res.json({
   ticketPriceCents:1000,
   paymentName:process.env.PAYMENT_ACCOUNT_NAME || "Samuel Adino",
   telebirrNumber:process.env.TELEBIRR_NUMBER || "0945723383",
-  cbeNumber:process.env.CBE_BIRR_NUMBER || "0945723383"
+  cbeNumber:process.env.CBE_BIRR_NUMBER || "0945723383",
+  botUrl:process.env.BOT_USERNAME ? "https://t.me/" + process.env.BOT_USERNAME.replace(/^@/,"") : null
 }));
 
 app.get("/api/state", requireTelegramUser, async (req,res) => {
