@@ -170,11 +170,11 @@ if (BOT_TOKEN) {
       ? "Enter the Telebirr/CBE Birr phone or account number where you want to receive the money:"
       : "Enter the payment transaction/reference number, or type SKIP:");
   });
-  bot.on("message:text", async ctx => {
+  bot.on("message:text", async (ctx,next) => {
     const state = walletSteps.get(String(ctx.from.id));
-    if (!state) return;
+    if (!state) return next();
     const value = ctx.message.text.trim();
-    if (value.startsWith("/")) return;
+    if (value.startsWith("/")) return next();
     if (state.step === "amount") {
       const amount = Number(value);
       if (!Number.isFinite(amount) || amount < 1 || amount > 1000000) return ctx.reply("Enter a valid amount of at least 1 ETB:");
@@ -220,10 +220,23 @@ if (BOT_TOKEN) {
       "INSERT INTO users(telegram_id,first_name,username) VALUES($1,$2,$3) ON CONFLICT(telegram_id) DO UPDATE SET first_name=EXCLUDED.first_name,username=EXCLUDED.username",
       [String(ctx.from.id),ctx.from.first_name || "Player",ctx.from.username || null]
     );
-    const keyboard = new InlineKeyboard().webApp("🎮 PLAY VICTOR BINGO", BASE_URL + "/").row()
-      .text("💳 Deposit", "wallet:deposit").text("💸 Withdrawal", "wallet:withdrawal").row()
-      .text("📜 Wallet History", "wallet:history").text("💰 Balance", "wallet:balance");
-    await ctx.reply("🎉 Welcome to Victor Bingo!\n\nCartela: 10 ETB\nChoose Play or Wallet:",{reply_markup:keyboard});
+    const keyboard = new InlineKeyboard().webApp("🎮 Play Victor Bingo", BASE_URL + "/").row()
+      .text("💰 My balance", "wallet:balance").text("💳 Deposit", "wallet:deposit").row()
+      .text("💸 Withdrawal", "wallet:withdrawal").text("📜 Transaction history", "wallet:history").row()
+      .text("📖 Instruction", "instruction").text("📝 Register", "register");
+    await ctx.reply("🎉 Welcome to Victor Bingo!\n\nCartela: 10 ETB\nSelect an option from the menu below:",{reply_markup:keyboard});
+  });
+  bot.callbackQuery("instruction", async ctx => {
+    await ctx.answerCallbackQuery();
+    await ctx.reply("📖 Victor Bingo Instructions\n\n1. Press Play Victor Bingo to open the game.\n2. Register with your Telegram account.\n3. Deposit using Telebirr or CBE Birr; admin verifies deposits.\n4. Each Cartela costs 10 ETB.\n5. Choose/buy Cartela before the 30-second countdown ends.\n6. Bingo numbers 1–75 are drawn automatically.\n7. Complete a row, column, diagonal, or four corners to win.\n8. 80% of ticket sales goes to winner(s); 20% is the house share.\n9. Withdrawals are reviewed by the admin.");
+  });
+  bot.callbackQuery("register", async ctx => {
+    await pool.query(
+      "INSERT INTO users(telegram_id,first_name,username) VALUES($1,$2,$3) ON CONFLICT(telegram_id) DO UPDATE SET first_name=EXCLUDED.first_name,username=EXCLUDED.username",
+      [String(ctx.from.id),ctx.from.first_name || "Player",ctx.from.username || null]
+    );
+    await ctx.answerCallbackQuery({text:"Registration successful!"});
+    await ctx.reply("✅ You are registered in Victor Bingo!\nYour Telegram account is linked to your Wallet.");
   });
   bot.command("admin", async ctx => {
     if (!ADMIN_ID || String(ctx.from.id)!==ADMIN_ID) return ctx.reply("⛔ Admin access denied.");
