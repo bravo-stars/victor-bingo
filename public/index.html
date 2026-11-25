@@ -128,7 +128,7 @@ const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const $=id=>document.getElementById(id);
 const headers={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
-let selectedCard=null,lastRoundId=null,currentState=null,socket=null;
+let selectedCard=null,lastRoundId=null,currentState=null,socket=null,selectionSignature=null;
 const money=c=>(Number(c||0)/100).toFixed(2)+" ETB";
 function setMessage(text){$("message").textContent=text;}
 function showScreen(name){
@@ -150,9 +150,12 @@ async function loadConfig(){
 }
 function renderSelection(s){
  const box=$("cardSelection");
- box.innerHTML="";
  const sold=new Set(s.round?.soldCardNumbers||[]);
  const owned=new Set((s.tickets||[]).map(t=>Number(t.cardNumber)));
+ const signature=[...sold].sort((a,b)=>a-b).join(",")+"|"+[...owned].sort((a,b)=>a-b).join(",")+"|"+selectedCard;
+ if(signature!==selectionSignature){
+  selectionSignature=signature;
+  box.innerHTML="";
  for(let n=1;n<=600;n++){
   const b=document.createElement("button");
   b.className="card-choice";
@@ -165,6 +168,7 @@ function renderSelection(s){
    renderSelection(currentState);
   });
   box.appendChild(b);
+  }
  }
  const ownCount=(s.tickets||[]).length;
  $("buy").disabled=!selectedCard||!s.round||s.round.status!=="waiting"||s.round.countdown<=0||ownCount>=2;
@@ -233,7 +237,7 @@ function renderState(s){
  $("roundNo").textContent=r?.id??"—";
  $("status").textContent=(r?.status||"WAITING").toUpperCase();
  if(!r){showScreen("lobby");$("time").textContent="30s";return;}
- if(lastRoundId!==r.id){lastRoundId=r.id;selectedCard=null;}
+ if(lastRoundId!==r.id){lastRoundId=r.id;selectedCard=null;selectionSignature=null;}
  if(r.status==="waiting"){
   showScreen("lobby");
   $("time").textContent=(r.countdown??30)+"s";
