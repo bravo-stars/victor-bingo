@@ -30,7 +30,7 @@ app.get("/api/state", requireTelegramUser, async (req,res) => {
 
 app.post("/api/tickets", requireTelegramUser, async (req,res) => {
   try {
-    const result = await buyTicket(req.victorUser.telegram_id);
+    const result = await buyTicket(req.victorUser.telegram_id, req.body?.cardNumber ?? null);
     res.json({ok:true,ticket:{id:result.ticket.id,cardNumber:result.ticket.card_number,card:result.ticket.card},balanceCents:result.balanceCents});
   } catch(error) {
     const messages = {
@@ -38,7 +38,9 @@ app.post("/api/tickets", requireTelegramUser, async (req,res) => {
       ROUND_CLOSED:"This round is closed. Wait for the next round.",
       INSUFFICIENT_BALANCE:"Your Wallet balance is not enough. Please deposit first.",
       ROOM_FULL:"All Cartela numbers are sold for this round.",
-      MAX_TICKETS:"You can buy a maximum of 2 Cartelas per round."
+      MAX_TICKETS:"You can buy a maximum of 2 Cartelas per round.",
+      INVALID_CARD:"Choose a valid Cartela number from 1 to 600.",
+      CARD_SOLD:"This Cartela has already been sold. Choose another one."
     };
     res.status(400).json({error:messages[error.message] || "Could not buy Cartela."});
   }
