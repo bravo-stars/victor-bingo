@@ -4,13 +4,15 @@ Server-authoritative Telegram Bingo Mini App using Node.js, Express, grammY, and
 
 ## Game rules
 - Cartela price: 10 ETB.
-- 30-second server-controlled purchase countdown.
+- 30-second server-controlled purchase countdown; if no Cartelas are sold, the lobby timer restarts at 30 seconds without drawing balls.
+- Players can choose an available Cartela number from 1–600; each player may buy up to 2 Cartelas per round.
 - Random 5x5 B-I-N-G-O cards with a FREE center.
 - Numbers 1–75 are drawn without repeats.
 - A winner completes any row, column, diagonal, or all four corners.
 - 80% of the round's Cartela sales is divided equally among all winners; 20% is retained by the house.
 - Winner results are shown for 10 seconds before the next round starts.
 - Ball draw interval defaults to 6 seconds and can be changed with `BALL_INTERVAL_MS`.
+- Authenticated Socket.io updates broadcast each player's private Cartelas, wallet balance, lobby/draw countdown, called balls, and winner display in real time.
 
 ## Render environment variables
 Set these in the Render Web Service Environment. Never commit secrets to GitHub.
