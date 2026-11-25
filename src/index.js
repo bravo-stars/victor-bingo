@@ -1,7 +1,8 @@
 const express = require("express");
+const { Server } = require("socket.io");
 const { Bot, InlineKeyboard } = require("grammy");
 const { pool, testDbConnection, migrateDatabase } = require("./db");
-const { requireTelegramUser } = require("./auth");
+const { requireTelegramUser, verifyTelegramInitData } = require("./auth");
 const { gameTick, buyTicket, getGameState } = require("./game");
 
 const app = express();
@@ -36,7 +37,8 @@ app.post("/api/tickets", requireTelegramUser, async (req,res) => {
       USER_NOT_FOUND:"Player account not found.",
       ROUND_CLOSED:"This round is closed. Wait for the next round.",
       INSUFFICIENT_BALANCE:"Your Wallet balance is not enough. Please deposit first.",
-      ROOM_FULL:"All Cartela numbers are sold for this round."
+      ROOM_FULL:"All Cartela numbers are sold for this round.",
+      MAX_TICKETS:"You can buy a maximum of 2 Cartelas per round."
     };
     res.status(400).json({error:messages[error.message] || "Could not buy Cartela."});
   }
@@ -276,16 +278,56 @@ if (BOT_TOKEN) {
 
 app.get("/", (req,res) => res.sendFile(require("path").join(__dirname,"..","public","index.html")));
 
-app.listen(PORT,"0.0.0.0",async () => {
+const server = app.listen(PORT,"0.0.0.0",async () => {
   console.log(`Victor Bingo server running on port ${PORT}`);
   const connected = await testDbConnection();
   if (connected) {
     try {
       await migrateDatabase();
       await gameTick();
-      setInterval(gameTick,1000);
+      setInterval(async () => {
+        await gameTick();
+        for (const socket of io.sockets.sockets.values()) {
+          try {
+            const state = await getGameState(socket.data.victorUser);
+            socket.emit("game:state", state);
+          } catch (error) {
+            console.error("Socket state broadcast failed:", error.message);
+          }
+        }
+      },1000);
     } catch(error) {
       console.error("Victor Bingo startup migration failed:",error.message);
     }
+  }
+});
+
+
+// Authenticated real-time updates. Each player receives only their own Cartelas.
+const io = new Server(server, {
+  cors: { origin: true, methods: ["GET"] }
+});
+
+io.use(async (socket, next) => {
+  try {
+    const tg = verifyTelegramInitData(socket.handshake.auth?.initData || "");
+    if (!tg?.id) return next(new Error("Telegram authentication required"));
+    const result = await pool.query(
+      "INSERT INTO users(telegram_id,first_name,username) VALUES($1,$2,$3) ON CONFLICT(telegram_id) DO UPDATE SET first_name=EXCLUDED.first_name,username=EXCLUDED.username RETURNING id,telegram_id,first_name,username",
+      [String(tg.id), String(tg.first_name || "Player").slice(0,100), tg.username ? String(tg.username).slice(0,100) : null]
+    );
+    socket.data.victorUser = result.rows[0];
+    next();
+  } catch (error) {
+    console.error("Socket authentication failed:", error.message);
+    next(new Error("Could not authenticate Telegram user"));
+  }
+});
+
+io.on("connection", async socket => {
+  try {
+    socket.emit("game:state", await getGameState(socket.data.victorUser));
+  } catch (error) {
+    console.error("Initial socket state failed:", error.message);
   }
 });
