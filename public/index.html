@@ -43,6 +43,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .cell.hit{background:#237b58;color:white}
 .cell.free{background:#f5c542;color:#101827}
 .notice{padding:10px;border-radius:9px;background:#253a55;margin-top:10px;font-size:13px}
+.method-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.method-btn{background:#334a68;color:#fff;border:2px solid transparent;padding:16px 8px;border-radius:12px}
+.method-btn.active{border-color:#f5c542;background:#3b4d63;color:#f5c542}
+.field{width:100%;padding:13px;border-radius:9px;border:1px solid #405875;background:#101827;color:#fff;font-size:16px;margin:6px 0 12px}
+.deposit-details{background:#253a55;padding:13px;border-radius:10px;margin:12px 0;line-height:1.8}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
 .modal.show{display:flex}
 .modal-content{width:100%;max-width:390px;background:#1d2b40;border:1px solid #d7b84a;border-radius:18px;padding:23px;text-align:center;box-shadow:0 18px 60px #0009}
@@ -68,6 +73,35 @@ button:disabled{opacity:.45;cursor:not-allowed}
  <div class="stat" style="grid-column:span 2"><small>STATUS</small><strong id="status">CONNECTING</strong></div>
  <div class="stat" style="grid-column:span 2"><small>TIME</small><strong id="time">30s</strong></div>
 </div>
+
+<div class="panel">
+ <button class="primary" id="openDeposit">💳 Deposit · Add Wallet Balance</button>
+</div>
+
+<section id="depositScreen" class="hidden">
+ <div class="panel">
+  <button class="secondary" id="closeDeposit">← Back to Game</button>
+  <h2 style="margin-top:14px">💳 የማስገቢያ መንገድ ይምረጡ (Select Deposit Method)</h2>
+  <p class="muted">እባክዎ ሂሳብ ለመሙላት የሚጠቀሙበትን መንገድ ይምረጡ:</p>
+  <div class="method-grid">
+   <button class="method-btn" id="chooseTelebirr">📱<br>Telebirr</button>
+   <button class="method-btn" id="chooseCbe">🏦<br>CBE Birr</button>
+  </div>
+  <div id="depositForm" class="hidden">
+   <div class="deposit-details">
+    <strong>Account Name:</strong> <span id="paymentName">—</span><br>
+    <strong id="methodAccountLabel">Telebirr Number:</strong> <span id="paymentNumber">—</span>
+   </div>
+   <label for="depositAmount">Deposit Amount (ETB)</label>
+   <input class="field" id="depositAmount" type="number" min="1" step="0.01" placeholder="Enter amount">
+   <label for="depositReference">Transaction ID / Reference (optional)</label>
+   <input class="field" id="depositReference" type="text" maxlength="120" placeholder="Enter payment reference">
+   <p class="muted">Send the money to the account above, then submit your request. Your Wallet is credited only after admin verification.</p>
+   <button class="primary" id="submitDeposit">Submit Deposit Request</button>
+  </div>
+  <div id="depositMessage" class="notice hidden"></div>
+ </div>
+</section>
 
 <div id="login" class="panel hidden">
  <h2>Open Victor Bingo in Telegram</h2>
@@ -128,7 +162,7 @@ const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const $=id=>document.getElementById(id);
 const headers={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
-let selectedCard=null,lastRoundId=null,currentState=null,socket=null,selectionSignature=null;
+let selectedCard=null,lastRoundId=null,currentState=null,socket=null,selectionSignature=null,depositMethod=null,paymentConfig=null;
 const money=c=>(Number(c||0)/100).toFixed(2)+" ETB";
 function setMessage(text){$("message").textContent=text;}
 function showScreen(name){
@@ -145,8 +179,42 @@ async function api(url,options={}){
 async function loadConfig(){
  try{
   const c=await fetch("/api/config").then(r=>r.json());
+  paymentConfig=c;
   if(c.botUrl){$("botlink").href=c.botUrl;}
+  $("paymentName").textContent=c.paymentName||"—";
  }catch(e){}
+}
+function openDeposit(){
+ $("depositScreen").classList.remove("hidden");
+ $("lobby").classList.add("hidden");$("game").classList.add("hidden");
+ $("winnerModal").classList.remove("show");
+}
+function chooseDepositMethod(method){
+ depositMethod=method;
+ $("chooseTelebirr").classList.toggle("active",method==="telebirr");
+ $("chooseCbe").classList.toggle("active",method==="cbe");
+ $("methodAccountLabel").textContent=method==="telebirr"?"Telebirr Number:":"CBE Birr Number:";
+ $("paymentNumber").textContent=method==="telebirr"?(paymentConfig?.telebirrNumber||"—"):(paymentConfig?.cbeNumber||"—");
+ $("depositForm").classList.remove("hidden");
+ $("depositMessage").classList.add("hidden");
+}
+async function submitDeposit(){
+ const amount=Number($("depositAmount").value);
+ if(!depositMethod){return;}
+ if(!Number.isFinite(amount)||amount<1){$("depositMessage").textContent="Please enter an amount of at least 1 ETB."; $("depositMessage").classList.remove("hidden");return;}
+ $("submitDeposit").disabled=true;
+ try{
+  const result=await api("/api/payments",{method:"POST",body:JSON.stringify({
+   kind:"deposit",method:depositMethod,amount,
+   senderReference:$("depositReference").value.trim()||null
+  })});
+  $("depositMessage").textContent="Deposit request #"+result.requestId+" submitted. Status: Pending admin review. Your Wallet will be credited after verification.";
+  $("depositMessage").classList.remove("hidden");
+  $("depositAmount").value="";$("depositReference").value="";
+ }catch(e){
+  $("depositMessage").textContent=e.message;
+  $("depositMessage").classList.remove("hidden");
+ }finally{$("submitDeposit").disabled=false;}
 }
 function renderSelection(s){
  const box=$("cardSelection");
@@ -281,6 +349,11 @@ async function buyTicket(){
  }
 }
 $("buy").addEventListener("click",buyTicket);
+$("openDeposit").addEventListener("click",openDeposit);
+$("closeDeposit").addEventListener("click",()=>{$("depositScreen").classList.add("hidden");if(currentState)renderState(currentState);else $("lobby").classList.remove("hidden");});
+$("chooseTelebirr").addEventListener("click",()=>chooseDepositMethod("telebirr"));
+$("chooseCbe").addEventListener("click",()=>chooseDepositMethod("cbe"));
+$("submitDeposit").addEventListener("click",submitDeposit);
 loadConfig();
 if(tg?.initData){
  socket=io({auth:{initData:tg.initData},transports:["websocket","polling"]});
