@@ -29,7 +29,7 @@ header{text-align:center;margin:6px auto 18px}h1{margin:0;color:#f5c542;font-siz
 </div>
 <div id="login" class="panel">
  <h2>Open Victor Bingo in Telegram</h2><p class="muted">For account security, sign in by opening the Mini App from the Victor Bingo Telegram bot.</p>
- <a href="https://t.me/victorbingo_bot" id="botlink" style="color:#f5c542">Open Telegram bot</a>
+ <a href="#" id="botlink" class="hidden" style="color:#f5c542">Open Telegram bot</a>
 </div>
 <div id="game" class="hidden">
  <section class="panel">
@@ -63,7 +63,7 @@ let currentRound=null,lastRoundId=null;
 const money=c=>(Number(c||0)/100).toFixed(2)+" ETB";
 function message(text){$("message").textContent=text;}
 async function api(url,options={}){const r=await fetch(url,{...options,headers:{...headers,...(options.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Request failed");return d;}
-async function loadConfig(){try{const c=await fetch("/api/config").then(r=>r.json());$("payName").textContent=c.paymentName;$("tele").textContent=c.telebirrNumber;$("cbe").textContent=c.cbeNumber;}catch(e){}}
+async function loadConfig(){try{const c=await fetch("/api/config").then(r=>r.json());$("payName").textContent=c.paymentName;$("tele").textContent=c.telebirrNumber;$("cbe").textContent=c.cbeNumber;if(c.botUrl){$("botlink").href=c.botUrl;$("botlink").classList.remove("hidden");}}catch(e){}}
 function renderCard(ticket,balls){const called=new Set(balls);let cells="";ticket.card.forEach((row,r)=>row.forEach((n,c)=>{const free=n===0,hit=free||called.has(n);cells+=`<div class="cell ${free?"free":hit?"hit":""}">${free?"FREE":n}</div>`;}));return `<div class="ticket"><h3>Cartela #${ticket.cardNumber}</h3><div class="bingo">${cells}</div></div>`;}
 function renderState(s){
  const round=s.round;currentRound=round;
