@@ -175,13 +175,7 @@ async function buyTicket(telegramId, requestedCardNumber = null) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const userResult = await client.query(
-      "SELECT * FROM users WHERE telegram_id=$1 FOR UPDATE",
-      [String(telegramId)]
-    );
-    const user = userResult.rows[0];
-    if (!user) throw new Error("USER_NOT_FOUND");
-
+    // Lock the round before the wallet row, matching the game engine's lock order.
     const roundResult = await client.query(
       "SELECT * FROM game_rounds WHERE status='waiting' ORDER BY id DESC LIMIT 1 FOR UPDATE"
     );
@@ -189,6 +183,13 @@ async function buyTicket(telegramId, requestedCardNumber = null) {
     if (!round || new Date(round.countdown_ends_at).getTime() <= Date.now()) {
       throw new Error("ROUND_CLOSED");
     }
+
+    const userResult = await client.query(
+      "SELECT * FROM users WHERE telegram_id=$1 FOR UPDATE",
+      [String(telegramId)]
+    );
+    const user = userResult.rows[0];
+    if (!user) throw new Error("USER_NOT_FOUND");
 
     const ownedResult = await client.query(
       "SELECT COUNT(*)::int AS n FROM round_tickets WHERE round_id=$1 AND user_id=$2",
