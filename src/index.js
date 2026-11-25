@@ -221,9 +221,12 @@ if (BOT_TOKEN) {
       [String(ctx.from.id),ctx.from.first_name || "Player",ctx.from.username || null]
     );
     const keyboard = new InlineKeyboard().webApp("🎮 Play Victor Bingo", BASE_URL + "/").row()
-      .text("💰 My balance", "wallet:balance").text("💳 Deposit", "wallet:deposit").row()
-      .text("💸 Withdrawal", "wallet:withdrawal").text("📜 Transaction history", "wallet:history").row()
-      .text("📖 Instruction", "instruction").text("📝 Register", "register");
+      .text("💰 My balance", "wallet:balance").row()
+      .text("💳 Deposit", "wallet:deposit").row()
+      .text("💸 Withdrawal", "wallet:withdrawal").row()
+      .text("📜 Transaction history", "wallet:history").row()
+      .text("📖 Instruction", "instruction").row()
+      .text("📝 Register", "register");
     await ctx.reply("🎉 Welcome to Victor Bingo!\n\nCartela: 10 ETB\nSelect an option from the menu below:",{reply_markup:keyboard});
   });
   bot.callbackQuery("instruction", async ctx => {
