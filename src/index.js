@@ -121,9 +121,105 @@ async function reviewPayment(requestId, action, adminId) {
 
 if (BOT_TOKEN) {
   const bot = new Bot(BOT_TOKEN);
+  const walletSteps = new Map();
+  const walletMenu = () => new InlineKeyboard()
+    .text("💳 Deposit", "wallet:deposit").text("💸 Withdrawal", "wallet:withdrawal").row()
+    .text("📜 Wallet History", "wallet:history").text("💰 Balance", "wallet:balance");
+  const paymentMethodMenu = () => new InlineKeyboard()
+    .text("Telebirr", "method:telebirr").text("CBE Birr", "method:cbe");
+  bot.command("wallet", async ctx => {
+    const user = await pool.query("SELECT wallet_cents FROM users WHERE telegram_id=$1",[String(ctx.from.id)]);
+    const balance = user.rows[0] ? (Number(user.rows[0].wallet_cents)/100).toFixed(2) : "0.00";
+    await ctx.reply("💰 Victor Bingo Wallet\nBalance: " + balance + " ETB\n\nChoose an action:",{reply_markup:walletMenu()});
+  });
+  bot.command("balance", async ctx => {
+    const user = await pool.query("SELECT wallet_cents FROM users WHERE telegram_id=$1",[String(ctx.from.id)]);
+    const balance = user.rows[0] ? (Number(user.rows[0].wallet_cents)/100).toFixed(2) : "0.00";
+    await ctx.reply("💰 Your Wallet balance: " + balance + " ETB");
+  });
+  bot.callbackQuery(/^wallet:(deposit|withdrawal|history|balance)$/, async ctx => {
+    const action = ctx.match[1];
+    await ctx.answerCallbackQuery();
+    if (action === "balance") {
+      const u = await pool.query("SELECT wallet_cents FROM users WHERE telegram_id=$1",[String(ctx.from.id)]);
+      return ctx.reply("💰 Your Wallet balance: " + (u.rows[0] ? (Number(u.rows[0].wallet_cents)/100).toFixed(2) : "0.00") + " ETB");
+    }
+    if (action === "history") {
+      const u = await pool.query("SELECT id FROM users WHERE telegram_id=$1",[String(ctx.from.id)]);
+      if (!u.rows[0]) return ctx.reply("No wallet transactions yet.");
+      const h = await pool.query("SELECT type,amount_cents,note,created_at FROM wallet_transactions WHERE user_id=$1 ORDER BY id DESC LIMIT 15",[u.rows[0].id]);
+      if (!h.rows.length) return ctx.reply("📜 Wallet History\n\nNo transactions yet.");
+      const lines = h.rows.map(x => {
+        const sign = Number(x.amount_cents) >= 0 ? "+" : "";
+        return sign + (Number(x.amount_cents)/100).toFixed(2) + " ETB · " + x.type + (x.note ? " · " + x.note : "");
+      });
+      return ctx.reply("📜 Wallet History\n\n" + lines.join("\n"));
+    }
+    walletSteps.set(String(ctx.from.id), {kind:action,step:"amount"});
+    return ctx.reply(action === "deposit"
+      ? "💳 Deposit request\n\nPayment account: Samuel Adino\nTelebirr: 0945723383\nCBE Birr: 0945723383\n\nEnter amount in ETB:"
+      : "💸 Withdrawal request\n\nEnter amount in ETB:");
+  });
+  bot.callbackQuery(/^method:(telebirr|cbe)$/, async ctx => {
+    const state = walletSteps.get(String(ctx.from.id));
+    if (!state || state.step !== "method") return ctx.answerCallbackQuery({text:"Start a new Wallet request first."});
+    state.method = ctx.match[1];
+    state.step = state.kind === "withdrawal" ? "account" : "reference";
+    await ctx.answerCallbackQuery();
+    await ctx.reply(state.kind === "withdrawal"
+      ? "Enter the Telebirr/CBE Birr phone or account number where you want to receive the money:"
+      : "Enter the payment transaction/reference number, or type SKIP:");
+  });
+  bot.on("message:text", async ctx => {
+    const state = walletSteps.get(String(ctx.from.id));
+    if (!state) return;
+    const value = ctx.message.text.trim();
+    if (value.startsWith("/")) return;
+    if (state.step === "amount") {
+      const amount = Number(value);
+      if (!Number.isFinite(amount) || amount < 1 || amount > 1000000) return ctx.reply("Enter a valid amount of at least 1 ETB:");
+      state.amount = Math.round(amount * 100);
+      state.step = "method";
+      return ctx.reply("Choose payment method:",{reply_markup:paymentMethodMenu()});
+    }
+    if (state.step === "account") {
+      if (value.length < 5 || value.length > 80) return ctx.reply("Enter a valid receiving account or phone number:");
+      state.payoutAccount = value;
+      state.step = "reference";
+      return ctx.reply("Enter a transaction/reference number, or type SKIP:");
+    }
+    if (state.step === "reference") {
+      state.reference = value.toUpperCase() === "SKIP" ? null : value.slice(0,120);
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const user = await client.query("SELECT id,wallet_cents FROM users WHERE telegram_id=$1 FOR UPDATE",[String(ctx.from.id)]);
+        if (!user.rows[0]) throw new Error("Open the game with /start first so your player account is created.");
+        if (state.kind === "withdrawal" && Number(user.rows[0].wallet_cents) < state.amount) throw new Error("Insufficient Wallet balance.");
+        if (state.kind === "withdrawal") await client.query("UPDATE users SET wallet_cents=wallet_cents-$1 WHERE id=$2",[state.amount,user.rows[0].id]);
+        const req = await client.query(
+          "INSERT INTO payment_requests(user_id,kind,method,amount_cents,payout_account,sender_reference) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
+          [user.rows[0].id,state.kind,state.method,state.amount,state.payoutAccount || null,state.reference]
+        );
+        if (state.kind === "withdrawal") await client.query(
+          "INSERT INTO wallet_transactions(user_id,type,amount_cents,reference,note) VALUES($1,'withdrawal_hold',$2,$3,$4)",
+          [user.rows[0].id,-state.amount,"withdrawal-request-"+req.rows[0].id,"Withdrawal request pending review"]
+        );
+        await client.query("COMMIT");
+        walletSteps.delete(String(ctx.from.id));
+        return ctx.reply("✅ " + state.kind.toUpperCase() + " request submitted.\nRequest ID: #" + req.rows[0].id + "\nAmount: " + (state.amount/100).toFixed(2) + " ETB\nStatus: Pending admin review.\n\n" + (state.kind === "deposit" ? "Your Wallet will be credited only after payment is verified." : "The amount is held until your withdrawal is reviewed."));
+      } catch(error) {
+        await client.query("ROLLBACK");
+        walletSteps.delete(String(ctx.from.id));
+        return ctx.reply("❌ " + error.message);
+      } finally { client.release(); }
+    }
+  });
   bot.command("start", async ctx => {
-    const keyboard = new InlineKeyboard().webApp("🎮 PLAY VICTOR BINGO", BASE_URL + "/");
-    await ctx.reply("🎉 Welcome to Victor Bingo!\n\nCartela: 10 ETB\nChoose Play to enter the game.",{reply_markup:keyboard});
+    const keyboard = new InlineKeyboard().webApp("🎮 PLAY VICTOR BINGO", BASE_URL + "/").row()
+      .text("💳 Deposit", "wallet:deposit").text("💸 Withdrawal", "wallet:withdrawal").row()
+      .text("📜 Wallet History", "wallet:history").text("💰 Balance", "wallet:balance");
+    await ctx.reply("🎉 Welcome to Victor Bingo!\n\nCartela: 10 ETB\nChoose Play or Wallet:",{reply_markup:keyboard});
   });
   bot.command("admin", async ctx => {
     if (!ADMIN_ID || String(ctx.from.id)!==ADMIN_ID) return ctx.reply("⛔ Admin access denied.");
