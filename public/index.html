@@ -14,7 +14,7 @@ header{text-align:center;margin:6px auto 18px}
 h1{margin:0;color:#f5c542;font-size:28px}
 header p{color:#aebbd0;margin:7px 0}
 .wrap{max-width:720px;margin:auto}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .stat,.panel{background:#1d2b40;border:1px solid #2c405c;border-radius:14px;padding:12px;text-align:center}
 .stat small{display:block;color:#aebbd0;font-size:11px;margin-bottom:6px}
 .stat strong{font-size:19px;color:#f5c542}
@@ -53,6 +53,7 @@ body{padding:11px}
  <div class="stat"><small>ROOM</small><strong>VIP 💰</strong></div>
  <div class="stat"><small>SOLD</small><strong id="sold">0</strong></div>
  <div class="stat"><small>TIME</small><strong id="time">30s</strong></div>
+ <div class="stat"><small>BALANCE</small><strong id="balance">0.00</strong></div>
 </div>
 
 <div id="login" class="panel">
@@ -142,14 +143,17 @@ function renderState(s){
 
  $("sold").textContent=round?.sold??0;
  $("time").textContent=round?.countdown==null?"DRAW":round.countdown+"s";
+ $("balance").textContent=money(s.balanceCents);
 
  $("roundTitle").textContent=round
   ?("ROUND #"+round.id+" · "+round.status.toUpperCase())
   :"Preparing first round…";
 
- $("buy").disabled=!round||round.status!=="waiting"||round.countdown<=0;
+ $("buy").disabled=!round||round.status!=="waiting"||round.countdown<=0||s.tickets.length>=2;
 
- $("buy").textContent=round?.status==="waiting"
+ $("buy").textContent=s.tickets.length>=2
+  ?"MAXIMUM 2 CARTELAS REACHED"
+  :round?.status==="waiting"
   ?"🎟️ BUY RANDOM CARTELA · 10 ETB"
   :"WAIT FOR NEXT ROUND";
 
