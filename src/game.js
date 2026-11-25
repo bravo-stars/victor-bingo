@@ -53,8 +53,16 @@ async function gameTick() {
       );
       round = result.rows[0];
     } else if (round.status === "waiting" && new Date(round.countdown_ends_at).getTime() <= now) {
-      await client.query("UPDATE game_rounds SET status='drawing',started_at=NOW() WHERE id=$1", [round.id]);
-      await drawNextBall(client, round.id);
+      const soldResult = await client.query("SELECT COUNT(*)::int AS n FROM round_tickets WHERE round_id=$1", [round.id]);
+      if (soldResult.rows[0].n === 0) {
+        await client.query(
+          "UPDATE game_rounds SET countdown_ends_at=NOW()+($2 * INTERVAL '1 second') WHERE id=$1",
+          [round.id, COUNTDOWN_SECONDS]
+        );
+      } else {
+        await client.query("UPDATE game_rounds SET status='drawing',started_at=NOW() WHERE id=$1", [round.id]);
+        await drawNextBall(client, round.id);
+      }
     } else if (round.status === "drawing") {
       const lastAt = round.last_ball_at ? new Date(round.last_ball_at).getTime() : new Date(round.started_at).getTime();
       if (now - lastAt >= BALL_INTERVAL_MS) await drawNextBall(client, round.id);
@@ -127,6 +135,11 @@ async function buyTicket(telegramId) {
     const roundResult = await client.query("SELECT * FROM game_rounds WHERE status='waiting' ORDER BY id DESC LIMIT 1 FOR UPDATE");
     const round = roundResult.rows[0];
     if (!round || new Date(round.countdown_ends_at).getTime() <= Date.now()) throw new Error("ROUND_CLOSED");
+    const playerTicketCount = await client.query(
+      "SELECT COUNT(*)::int AS n FROM round_tickets WHERE round_id=$1 AND user_id=$2",
+      [round.id,user.id]
+    );
+    if (playerTicketCount.rows[0].n >= 2) throw new Error("TICKET_LIMIT");
     if (Number(user.wallet_cents) < TICKET_PRICE_CENTS) throw new Error("INSUFFICIENT_BALANCE");
 
     const occupied = await client.query("SELECT card_number FROM round_tickets WHERE round_id=$1", [round.id]);
