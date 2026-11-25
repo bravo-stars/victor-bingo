@@ -148,7 +148,7 @@ if (BOT_TOKEN) {
         const request = await pool.query("SELECT kind FROM payment_requests WHERE id=$1",[id]);
         if (!request.rows[0] || request.rows[0].kind!==kind) return ctx.reply("Request not found.");
         const reviewed = await reviewPayment(id,action,ctx.from.id);
-        await ctx.reply(`Request #${id} ${action}d successfully.`);
+        await ctx.reply(`Request #${id} ${action === "approve" ? "approved" : "rejected"} successfully.`);
       } catch(error) { await ctx.reply(error.message); }
     });
   }
