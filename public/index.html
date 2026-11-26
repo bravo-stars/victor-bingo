@@ -81,25 +81,25 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <section id="depositScreen" class="hidden">
  <div class="panel">
   <button class="secondary" id="closeDeposit">← Back to Game</button>
-  <h2 style="margin-top:14px">💳 የማስገቢያ መንገድ ይምረጡ</h2>
-  <p class="muted">እባክዎ ሂሳብ ለመሙላት የሚጠቀሙበትን መንገድ ይምረጡ:</p>
+  <h2 style="margin-top:14px">💳 Deposit request</h2>
+  <div class="deposit-details">
+   <strong>Payment account:</strong> <span id="paymentName">Samuel Adino</span><br>
+   <strong>Telebirr:</strong> <span id="paymentTelebirr">0945723383</span><br>
+   <strong>CBE Birr:</strong> <span id="paymentCbe">0945723383</span>
+  </div>
+  <label for="depositAmount">Enter amount in ETB:</label>
+  <input class="field" id="depositAmount" type="number" min="1" step="0.01" placeholder="Enter amount">
+  <p class="muted">Select the payment method you used:</p>
   <div class="method-grid">
    <button class="method-btn" id="chooseTelebirr">📱<br>Telebirr</button>
    <button class="method-btn" id="chooseCbe">🏦<br>CBE Birr</button>
   </div>
   <div id="depositForm" class="hidden">
-   <div class="deposit-details">
-    <strong>የሂሳብ ባለቤት:</strong> <span id="paymentName">—</span><br>
-    <strong id="methodAccountLabel">Telebirr ቁጥር:</strong> <span id="paymentNumber">—</span>
-   </div>
-   <label for="depositAmount">የሚያስገቡት መጠን (ETB)</label>
-   <input class="field" id="depositAmount" type="number" min="1" step="0.01" placeholder="መጠኑን ያስገቡ">
-   <label for="depositReference">የክፍያ መለያ ቁጥር (ካለ)</label>
-   <input class="field" id="depositReference" type="text" maxlength="120" placeholder="የክፍያ መለያ ቁጥር ያስገቡ">
-   <p class="muted">Send the money to the account above, then submit your request. Your Wallet is credited only after admin verification.</p>
-   <button class="primary" id="submitDeposit">የDeposit ጥያቄ ላክ</button>
+   <label for="depositReference">Transaction ID / Reference (optional)</label>
+   <input class="field" id="depositReference" type="text" maxlength="120" placeholder="Enter payment reference">
+   <p class="muted">Your Wallet is credited only after admin verification.</p>
+   <button class="primary" id="submitDeposit">Submit Deposit Request</button>
   </div>
-  <div id="depositMessage" class="notice hidden"></div>
  </div>
 </section>
 
@@ -181,7 +181,9 @@ async function loadConfig(){
   const c=await fetch("/api/config").then(r=>r.json());
   paymentConfig=c;
   if(c.botUrl){$("botlink").href=c.botUrl;}
-  $("paymentName").textContent=c.paymentName||"—";
+  $("paymentName").textContent=c.paymentName||"Samuel Adino";
+  $("paymentTelebirr").textContent=c.telebirrNumber||"0945723383";
+  $("paymentCbe").textContent=c.cbeNumber||"0945723383";
  }catch(e){}
 }
 function openDeposit(){
@@ -200,7 +202,7 @@ function chooseDepositMethod(method){
 }
 async function submitDeposit(){
  const amount=Number($("depositAmount").value);
- if(!depositMethod){return;}
+ if(!depositMethod){$("depositMessage").textContent="Please select Telebirr or CBE Birr."; $("depositMessage").classList.remove("hidden");return;}
  if(!Number.isFinite(amount)||amount<1){$("depositMessage").textContent="Please enter an amount of at least 1 ETB."; $("depositMessage").classList.remove("hidden");return;}
  $("submitDeposit").disabled=true;
  try{
