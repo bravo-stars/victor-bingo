@@ -16,14 +16,16 @@ function shuffledSample(min, max, count) {
   return values.slice(0, count).sort((a, b) => a - b);
 }
 
-function makeCard() {
-  const cols = [
-    shuffledSample(1, 15, 5),
-    shuffledSample(16, 30, 5),
-    shuffledSample(31, 45, 5),
-    shuffledSample(46, 60, 5),
-    shuffledSample(61, 75, 5)
-  ];
+function makeCard(seed) {
+  let state = 21621;
+  for (const ch of String(seed)) state = (state * 31 + ch.charCodeAt(0)) >>> 0;
+  const randomInt = max => { state = (state * 1664525 + 1013904223) >>> 0; return state % max; };
+  const sample = (min,max,count) => {
+    const values=Array.from({length:max-min+1},(_,i)=>i+min);
+    for(let i=values.length-1;i>0;i--){const j=randomInt(i+1);[values[i],values[j]]=[values[j],values[i]];}
+    return values.slice(0,count).sort((a,b)=>a-b);
+  };
+  const cols = [sample(1,15,5),sample(16,30,5),sample(31,45,5),sample(46,60,5),sample(61,75,5)];
   const card = Array.from({ length: 5 }, (_, r) =>
     Array.from({ length: 5 }, (_, c) => cols[c][r])
   );
@@ -222,7 +224,7 @@ async function buyTicket(telegramId, requestedCardNumber = null) {
     } else {
       cardNumber = available[crypto.randomInt(available.length)];
     }
-    const card = makeCard();
+    const card = makeCard(String(round.id)+':'+String(cardNumber));
 
     await client.query(
       "UPDATE users SET wallet_cents=wallet_cents-$1 WHERE id=$2",
@@ -248,6 +250,17 @@ async function buyTicket(telegramId, requestedCardNumber = null) {
   } finally {
     client.release();
   }
+}
+
+async function previewCard(telegramId, requestedCardNumber) {
+  const number=Number(requestedCardNumber);
+  if(!Number.isInteger(number)||number<1||number>600) throw new Error("INVALID_CARD");
+  const q=await pool.query("SELECT id,countdown_ends_at FROM game_rounds WHERE status='waiting' ORDER BY id DESC LIMIT 1");
+  const round=q.rows[0];
+  if(!round||new Date(round.countdown_ends_at).getTime()<=Date.now()) throw new Error("ROUND_CLOSED");
+  const sold=await pool.query("SELECT 1 FROM round_tickets WHERE round_id=$1 AND card_number=$2",[round.id,number]);
+  if(sold.rowCount) throw new Error("CARD_SOLD");
+  return {cardNumber:number,card:makeCard(String(round.id)+':'+String(number))};
 }
 
 async function getGameState(user) {
@@ -321,7 +334,7 @@ async function getGameState(user) {
 }
 
 module.exports = {
-  gameTick, buyTicket, getGameState,
+  gameTick, buyTicket, previewCard, getGameState,
   TICKET_PRICE_CENTS, COUNTDOWN_SECONDS,
   BALL_INTERVAL_MS, RESULT_SECONDS, MAX_TICKETS_PER_USER
 };
