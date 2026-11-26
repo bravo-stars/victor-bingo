@@ -263,7 +263,7 @@ async function getGameState(user) {
     };
   }
 
-  const [tickets, balls, sold, soldCards] = await Promise.all([
+  const [tickets, balls, sold, soldCards, players] = await Promise.all([
     pool.query(
       "SELECT id,card_number,card FROM round_tickets WHERE round_id=$1 AND user_id=$2 ORDER BY id",
       [round.id, user.id]
@@ -276,7 +276,8 @@ async function getGameState(user) {
       "SELECT COUNT(*)::int AS n FROM round_tickets WHERE round_id=$1",
       [round.id]
     ),
-    pool.query("SELECT card_number FROM round_tickets WHERE round_id=$1", [round.id])
+    pool.query("SELECT card_number FROM round_tickets WHERE round_id=$1", [round.id]),
+    pool.query("SELECT COUNT(DISTINCT user_id)::int AS n FROM round_tickets WHERE round_id=$1", [round.id])
   ]);
 
   let countdown = null;
@@ -302,6 +303,7 @@ async function getGameState(user) {
       countdown,
       drawCountdown,
       sold: Number(sold.rows[0].n),
+      players: Number(players.rows[0].n),
       soldCardNumbers: soldCards.rows.map(r => Number(r.card_number)),
       winners: round.winners || [],
       prizePoolCents: Number(round.prize_pool_cents || 0),
