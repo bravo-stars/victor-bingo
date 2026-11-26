@@ -8,65 +8,74 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}
-body{margin:0;padding:13px;background:#101827;color:#f7f8fb;font-family:Arial,sans-serif}
+:root{color-scheme:light;--ink:#263449;--muted:#8492a6;--line:#c7d0dc;--paper:#eef2f7;--white:#fff;--blue:#2563eb;--green:#16a34a;--yellow:#facc15}
+*{box-sizing:border-box}
+body{margin:0;padding:12px 12px 0;background:#e7edf5;color:var(--ink);font-family:Arial,sans-serif}
 .wrap{max-width:760px;margin:auto}
-header{text-align:center;margin:5px auto 16px}
-h1{margin:0;color:#f5c542;font-size:26px}
-header p{color:#aebbd0;margin:6px 0;font-size:13px}
+header{display:none}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
-.stat,.panel{background:#1d2b40;border:1px solid #2c405c;border-radius:13px;padding:11px;text-align:center;min-width:0}
-.stat small{display:block;color:#aebbd0;font-size:10px;margin-bottom:6px}
-.stat strong{font-size:17px;color:#f5c542;display:block;overflow-wrap:anywhere}
-.panel{margin-top:11px;text-align:left}
-.panel h2{font-size:17px;margin:0 0 10px}
-.muted{color:#aebbd0;font-size:13px}
-.timer{font-size:55px;font-weight:800;text-align:center;color:#f5c542;padding:12px}
-.primary,button{border:0;border-radius:10px;padding:12px 13px;font-weight:700;cursor:pointer}
-.primary{width:100%;background:#f5c542;color:#101827;font-size:15px;margin-top:10px}
+.stat,.panel{background:#334155;border:1px solid #475569;border-radius:18px;padding:11px;text-align:center;min-width:0;box-shadow:0 3px 5px #0002}
+.stat small{display:block;color:#cbd5e1;font-size:11px;font-style:italic;font-weight:800;margin-bottom:5px}
+.stat strong{font-size:17px;color:#fff;display:block;overflow-wrap:anywhere}
+.stat:first-child{background:#facc15;border-color:#eab308}.stat:first-child small,.stat:first-child strong{color:#503d00}
+.stat.balance{background:#16a34a;border-color:#15803d}.stat.balance small,.stat.balance strong{color:#fff}
+.panel{margin-top:10px;text-align:left;background:#dce4ee;border:1px solid #bdc8d6;border-radius:22px;padding:12px}
+.panel h2{font-size:16px;margin:0 0 10px}
+.muted{color:#64748b;font-size:12px}
+.timer{font-size:34px;font-weight:800;text-align:center;color:#334155;padding:4px}
+.primary,button{border:0;border-radius:10px;padding:11px 12px;font-weight:800;cursor:pointer}
+.primary{width:100%;background:#facc15;color:#263449;font-size:14px;margin-top:10px}
 .secondary{background:#334a68;color:white}
-button:disabled{opacity:.45;cursor:not-allowed}
+button:disabled{opacity:.55;cursor:not-allowed}
 .hidden{display:none!important}
-#cardSelection{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;max-height:260px;overflow:auto;padding:2px}
-.card-choice{padding:8px 1px;background:#334a68;color:white;border-radius:7px;font-size:12px}
-.card-choice.selected{background:#f5c542;color:#101827}
-.card-choice.sold{background:#b45309;color:#fff;opacity:.8}
-.card-choice.owned{background:#168454;color:white}
-#balls{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
-.ball{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:#334a68;font-weight:bold;font-size:12px}
-.ball.called{background:#237b58;color:white}
-.ball.latest{background:#f5c542;color:#101827;transform:scale(1.06);outline:2px solid #fff}
-.ticket{border:1px solid #39516f;border-radius:12px;padding:10px;margin-top:10px}
-.ticket h3{margin:0 0 8px;color:#65d69a;font-size:14px}
-.bingo{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
-.cell{background:#2b405c;border-radius:5px;text-align:center;padding:9px 2px;font-size:13px}
-.cell.hit{background:#237b58;color:white}
-.cell.free{background:#f5c542;color:#101827}
-.notice{padding:10px;border-radius:9px;background:#253a55;margin-top:10px;font-size:13px}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
-.modal.show{display:flex}
-.modal-content{width:100%;max-width:390px;background:#1d2b40;border:1px solid #d7b84a;border-radius:18px;padding:23px;text-align:center;box-shadow:0 18px 60px #0009}
-.trophy{font-size:48px}
-.winner-name{font-size:25px;color:#f5c542;font-weight:800;margin:13px 0}
-.prize{font-size:27px;color:#65d69a;font-weight:800}
-.progress{height:9px;background:#334a68;border-radius:20px;overflow:hidden;margin-top:16px}
-.progress-bar{height:100%;background:#f5c542;width:100%;transition:width .8s linear}
-@media(max-width:480px){body{padding:10px}.stats{gap:5px}.stat{padding:9px 3px}.stat strong{font-size:15px}#cardSelection{grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}.card-choice{font-size:11px;padding:7px 0}.cell{padding:7px 1px;font-size:12px}}
+#lobby .panel{background:#dce4ee;border-radius:28px}
+#cardSelection{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;max-height:calc(100dvh - 470px);min-height:280px;overflow:auto;padding:4px}
+.card-choice{padding:10px 1px;background:#fff;color:#1f2937;border:1px solid #d3dbe5;border-radius:12px;font-size:14px;box-shadow:0 2px 4px #0001}
+.card-choice.selected{background:#facc15;color:#172033;border:2px solid #eab308}
+.card-choice.sold{background:#f97316;color:#fff;border-color:#ea580c}
+.card-choice.owned{background:#16a34a;color:#fff}
+#selectionHint{margin:8px 2px}
+#buy{margin-bottom:2px}
+#game{display:grid;grid-template-columns:minmax(118px,.78fr) minmax(0,1fr);gap:10px;align-items:start}
+#game .panel{margin-top:8px;padding:9px;background:#f0f4f9;border:1px solid #cbd5e1;border-radius:16px}
+#game .panel:first-child{grid-column:1/-1;background:#1e293b;color:white;border-radius:0;margin:0 -12px;padding:9px 14px}
+#game .panel:first-child h2,#game .panel:first-child .muted{display:none}
+#game .panel:first-child .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+#game .panel:first-child .stat{background:transparent;border:0;box-shadow:none;padding:0}
+#game .panel:first-child .stat small{font-style:normal;color:#cbd5e1}
+#game .panel:first-child .stat strong{color:#facc15}
+#game .panel:nth-child(2){grid-column:1;position:sticky;top:0}
+#game .panel:nth-child(3){grid-column:2;min-width:0}
+#game .panel:nth-child(2) h2{display:none}
+#game .panel:nth-child(3) h2{font-size:13px;text-align:center;color:#475569}
+#balls{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}
+.ball{aspect-ratio:1;display:grid;place-items:center;background:#fff;border:1px solid #cbd5e1;border-radius:4px;font-size:clamp(10px,2.5vw,15px);font-weight:800;color:#111827}
+.ball.head{background:#2563eb;color:white;font-style:italic;font-size:16px}
+.ball.head:nth-child(2){background:#dc2626}.ball.head:nth-child(3){background:#eab308}.ball.head:nth-child(4){background:#16a34a}.ball.head:nth-child(5){background:#9333ea}
+.ball.called{background:#16a34a;color:white}.ball.latest{background:#2563eb;color:white;outline:2px solid white;transform:scale(1.05);z-index:1}
+.ticket{border:0;border-radius:15px;background:#fff;padding:9px 8px;margin:9px 0 14px;box-shadow:0 3px 8px #0002}
+.ticket h3{margin:-9px -8px 8px;padding:9px 3px;background:#2563eb;color:#fff;border-radius:14px 14px 0 0;font-size:15px;text-align:center;letter-spacing:3px}
+.bingo{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.cell{background:#eef2f7;border:1px solid #cbd5e1;border-radius:7px;text-align:center;padding:clamp(5px,1.6vw,10px) 1px;font-size:clamp(11px,2.8vw,16px);font-weight:800;color:#263449}
+.cell.hit{background:#16a34a;color:white}.cell.free{background:#2563eb;color:white}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.slots>div{height:125px;border:2px dashed #9aa8ba;border-radius:20px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:34px;color:#bdc8d6;font-weight:bold}.slots small{font-size:11px;letter-spacing:1px;color:#64748b;margin-top:12px}.notice{padding:10px;border-radius:9px;background:#e2e8f0;margin-top:10px;font-size:13px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
+.modal.show{display:flex}.modal-content{width:100%;max-width:390px;background:#fff;border:2px solid #facc15;border-radius:18px;padding:23px;text-align:center;box-shadow:0 18px 60px #0005}
+.trophy{font-size:48px}.winner-name{font-size:25px;color:#2563eb;font-weight:800;margin:13px 0}.prize{font-size:27px;color:#16a34a;font-weight:800}
+.progress{height:9px;background:#e2e8f0;border-radius:20px;overflow:hidden;margin-top:16px}.progress-bar{height:100%;background:#facc15;width:100%;transition:width .8s linear}
+@media(max-width:480px){body{padding:12px 10px 0}.stats{gap:5px}.stat{padding:10px 3px}.stat strong{font-size:15px}#cardSelection{grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;max-height:calc(100dvh - 450px);min-height:260px}.card-choice{font-size:12px;padding:9px 0}#game{grid-template-columns:minmax(110px,.8fr) minmax(0,1fr);gap:7px}#game .panel:nth-child(2),#game .panel:nth-child(3){padding:7px 5px}.cell{padding:8px 0}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header><h1>🎉 VICTOR BINGO · VIP</h1><p>Play fair. Win together.</p></header>
 
-<div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))">
- <div class="stat"><small>ROOM</small><strong>VIP 💰</strong></div>
+<div class="stats" id="topStats">
+ <div class="stat"><small>ROOM</small><strong>VIP 💰💰</strong></div>
  <div class="stat"><small>SOLD</small><strong id="sold">0</strong></div>
- <div class="stat"><small>ROUND</small><strong id="roundNo">—</strong></div>
-</div>
-<div class="stats" style="margin-top:7px;grid-template-columns:repeat(2,minmax(0,1fr))">
- <div class="stat"><small>STATUS</small><strong id="status">CONNECTING</strong></div>
  <div class="stat"><small>TIME</small><strong id="time">30s</strong></div>
-</div>
+ <div class="stat balance"><small>BALANCE</small><strong id="balance">0.00 ETB</strong></div>
+</div><div class="hidden"><span id="roundNo">—</span><span id="status">CONNECTING</span></div>
 
 <div id="login" class="panel hidden">
  <h2>Open Victor Bingo in Telegram</h2>
@@ -76,12 +85,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <section id="lobby" class="hidden">
  <div class="panel">
-  <h2>🎟️ Lobby · Choose your Cartela</h2>
+  <h2>🎟️ Choose your Cartela</h2>
   <div class="timer" id="lobbyTimer">30</div>
-  <p class="muted">Choose one available Cartela (1–600). Maximum 2 Cartelas per player. Each costs 10 ETB.</p>
+  <p class="muted">Choose Cartela 1–600 · Maximum 2 · 10 ETB each</p>
   <div id="cardSelection"></div>
   <p class="muted" id="selectionHint">Select an available Cartela number.</p>
-  <button class="primary" id="buy" disabled>BUY SELECTED CARTELA · 10 ETB</button>
+  <div class="slots"><div id="slot1">＋<small>SLOT 1 EMPTY</small></div><div id="slot2">＋<small>SLOT 2 EMPTY</small></div></div><button class="primary" id="buy" disabled>CONFIRM CARTELA · 10 ETB</button>
   <div id="message" class="notice">Connecting to game server…</div>
  </div>
 </section>
@@ -95,14 +104,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
    <div class="stat"><small>LATEST BALL</small><strong id="latestBall">—</strong></div>
    <div class="stat"><small>ROUND</small><strong id="gameRound">—</strong></div>
   </div>
-  <p class="muted">Balls are drawn by the server every 6 seconds. Winning patterns: row, column, diagonal or four corners. Bingo is validated automatically by the server.</p>
+  <p class="muted">Balls are drawn automatically by the server. Winning patterns: row, column, diagonal or four corners. Bingo is validated automatically by the server.</p>
  </div>
  <div class="panel">
-  <h2>🔵 Called Balls <span class="muted" id="ballLabel">(0/75)</span></h2>
+  <h2>BINGO</h2>
   <div id="balls"></div>
  </div>
  <div class="panel">
-  <h2>🎫 My Cartelas</h2>
+  <h2>MY CARTELAS</h2>
   <div id="tickets"><p class="muted">No Cartela purchased in this round.</p></div>
  </div>
 </section>
@@ -178,9 +187,10 @@ function renderBalls(s){
  $("drawTimer").textContent=(s.round?.drawCountdown??6)+"s";
  const called=new Set(balls);
  const box=$("balls");box.innerHTML="";
- for(let n=1;n<=75;n++){
-  const b=document.createElement("div");
-  b.className="ball";
+ const heads=["B","I","N","G","O"];
+ heads.forEach(h=>{const b=document.createElement("div");b.className="ball head";b.textContent=h;box.appendChild(b);});
+ for(let row=0;row<15;row++)for(let col=0;col<5;col++){
+  const n=col*15+row+1,b=document.createElement("div");b.className="ball";
   if(called.has(n))b.classList.add("called");
   if(s.latestBall===n)b.classList.add("latest");
   b.textContent=n;box.appendChild(b);
@@ -188,11 +198,13 @@ function renderBalls(s){
 }
 function renderTickets(s){
  const box=$("tickets");box.innerHTML="";
+ $("slot1").innerHTML="＋<small>SLOT 1 EMPTY</small>";$("slot2").innerHTML="＋<small>SLOT 2 EMPTY</small>";
  if(!s.tickets?.length){
   box.innerHTML='<p class="muted">No Cartela purchased in this round.</p>';return;
  }
  const called=new Set(s.balls||[]);
- s.tickets.forEach(ticket=>{
+ s.tickets.forEach((ticket,index)=>{
+  const slot=$(index===0?"slot1":"slot2");slot.innerHTML="#"+ticket.cardNumber+"<small>SLOT "+(index+1)+" SELECTED</small>";
   const wrap=document.createElement("div");wrap.className="ticket";
   const title=document.createElement("h3");title.textContent="Cartela #"+ticket.cardNumber;
   const grid=document.createElement("div");grid.className="bingo";
@@ -224,6 +236,7 @@ function renderWinner(round){
 }
 function renderState(s){
  currentState=s;
+ $("balance").textContent=money(s.balanceCents);
  const r=s.round;
  $("sold").textContent=r?.sold??0;
  $("roundNo").textContent=r?.id??"—";
