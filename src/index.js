@@ -172,7 +172,40 @@ if (BOT_TOKEN) {
     await ctx.answerCallbackQuery();
     await ctx.reply(state.kind === "withdrawal"
       ? "Enter the Telebirr/CBE Birr phone or account number where you want to receive the money:"
-      : "Enter the payment transaction/reference number, or type SKIP:");
+      : "Send the payment transaction/reference number, upload a payment screenshot, or type SKIP:");
+  });
+  bot.on("message:photo", async (ctx,next) => {
+    const state = walletSteps.get(String(ctx.from.id));
+    if (!state || state.step !== "reference" || state.kind !== "deposit") return next();
+    const photos = ctx.message.photo || [];
+    const proofFileId = photos.length ? photos[photos.length - 1].file_id : null;
+    if (!proofFileId) return ctx.reply("I could not read that image. Please send the screenshot again.");
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const user = await client.query("SELECT id FROM users WHERE telegram_id=$1 FOR UPDATE",[String(ctx.from.id)]);
+      if (!user.rows[0]) throw new Error("Open the game with /start first so your player account is created.");
+      const req = await client.query(
+        "INSERT INTO payment_requests(user_id,kind,method,amount_cents,sender_reference,proof_file_id) VALUES($1,'deposit',$2,$3,$4,$5) RETURNING id",
+        [user.rows[0].id,state.method,state.amount,ctx.message.caption ? String(ctx.message.caption).slice(0,120) : null,proofFileId]
+      );
+      await client.query("COMMIT");
+      walletSteps.delete(String(ctx.from.id));
+      const caption = "📥 NEW DEPOSIT REQUEST #" + req.rows[0].id +
+        "\nPlayer Telegram ID: " + ctx.from.id +
+        "\nMethod: " + state.method.toUpperCase() +
+        "\nAmount: " + (state.amount/100).toFixed(2) + " ETB";
+      if (ADMIN_ID) {
+        try { await bot.api.sendPhoto(ADMIN_ID,proofFileId,{caption}); }
+        catch (sendError) { console.error("Could not forward deposit proof to admin:",sendError.message); }
+      }
+      return ctx.reply("✅ DEPOSIT request submitted.\nRequest ID: #" + req.rows[0].id +
+        "\nAmount: " + (state.amount/100).toFixed(2) + " ETB\nStatus: Pending admin review.\n\nYour screenshot has been sent for verification. Your Wallet will be credited only after admin approval.");
+    } catch(error) {
+      await client.query("ROLLBACK");
+      walletSteps.delete(String(ctx.from.id));
+      return ctx.reply("❌ " + error.message);
+    } finally { client.release(); }
   });
   bot.on("message:text", async (ctx,next) => {
     const state = walletSteps.get(String(ctx.from.id));
@@ -251,9 +284,9 @@ if (BOT_TOKEN) {
   });
   bot.command("pending", async ctx => {
     if (!ADMIN_ID || String(ctx.from.id)!==ADMIN_ID) return ctx.reply("⛔ Admin access denied.");
-    const result = await pool.query("SELECT id,kind,method,amount_cents,payout_account,sender_reference FROM payment_requests WHERE status='pending' ORDER BY id LIMIT 30");
+    const result = await pool.query("SELECT id,kind,method,amount_cents,payout_account,sender_reference,proof_file_id FROM payment_requests WHERE status='pending' ORDER BY id LIMIT 30");
     if (!result.rows.length) return ctx.reply("No pending payment requests.");
-    const lines = result.rows.map(r => `#${r.id} ${r.kind.toUpperCase()} ${r.method} ${(Number(r.amount_cents)/100).toFixed(2)} ETB${r.payout_account?" → "+r.payout_account:""}${r.sender_reference?" Ref: "+r.sender_reference:""}`);
+    const lines = result.rows.map(r => `#${r.id} ${r.kind.toUpperCase()} ${r.method} ${(Number(r.amount_cents)/100).toFixed(2)} ETB${r.payout_account?" → "+r.payout_account:""}${r.sender_reference?" Ref: "+r.sender_reference:""}${r.proof_file_id?" 📷 Screenshot attached":""}`);
     await ctx.reply(lines.join("\n"));
   });
   for (const [command,action,kind] of [
