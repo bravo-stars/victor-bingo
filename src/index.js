@@ -126,6 +126,7 @@ async function reviewPayment(requestId, action, adminId) {
 if (BOT_TOKEN) {
   const bot = new Bot(BOT_TOKEN);
   const walletSteps = new Map();
+  const adminSteps = new Map();
   const walletMenu = () => new InlineKeyboard()
     .text("💳 Deposit", "wallet:deposit").text("💸 Withdrawal", "wallet:withdrawal").row()
     .text("📜 Wallet History", "wallet:history").text("💰 Balance", "wallet:balance");
@@ -330,16 +331,18 @@ if (BOT_TOKEN) {
     await ctx.reply("✅ You are registered in Victor Bingo!\nYour Telegram account is linked to your Wallet.");
   });
   const adminMenu = () => new InlineKeyboard()
-    .text("📊 Dashboard", "admin:dashboard").row()
+    .text("📊 Overview", "admin:dashboard").row()
+    .text("👥 User Management", "admin:users").row()
+    .text("➕➖ Manual Balance Adjustment", "admin:adjust").row()
     .text("📥 Pending Payments", "admin:pending").row()
-    .text("👥 Players", "admin:players").text("🏆 Winners", "admin:winners").row()
+    .text("🏆 Winners", "admin:winners").row()
     .text("💳 Transactions", "admin:transactions");
   const isAdmin = ctx => ADMIN_ID && String(ctx.from.id) === ADMIN_ID;
   bot.command("admin", async ctx => {
     if (!isAdmin(ctx)) return ctx.reply("⛔ Admin access denied.");
     await ctx.reply("🛠 VICTOR BINGO · ADMIN PANEL\n\nChoose what you want to manage:", {reply_markup:adminMenu()});
   });
-  bot.callbackQuery(/^admin:(dashboard|pending|players|winners|transactions)$/, async ctx => {
+  bot.callbackQuery(/^admin:(dashboard|pending|users|players|adjust|winners|transactions)$/, async ctx => {
     if (!isAdmin(ctx)) return ctx.answerCallbackQuery({text:"Admin access denied.",show_alert:true});
     const page = ctx.match[1];
     await ctx.answerCallbackQuery();
@@ -380,13 +383,13 @@ if (BOT_TOKEN) {
         }
         return;
       }
-      if (page === "players") {
-        const result = await pool.query("SELECT telegram_id,first_name,username,wallet_cents,created_at FROM users ORDER BY id DESC LIMIT 15");
-        const lines = result.rows.map(u => "👤 "+(u.first_name || "Player")+
-          (u.username ? " (@"+u.username+")" : "")+"\nID: "+u.telegram_id+
-          " · Wallet: "+(Number(u.wallet_cents)/100).toFixed(2)+" ETB");
-        return ctx.reply("👥 LATEST PLAYERS\n\n"+(lines.join("\n\n") || "No players yet.")+
-          "\n\nUse /player TELEGRAM_ID to view one player.",{reply_markup:adminMenu()});
+      if (page === "users" || page === "players") {
+        adminSteps.set(String(ctx.from.id),{kind:"user_lookup"});
+        return ctx.reply("👥 USER MANAGEMENT\n\nSend the player's Telegram ID to view their profile and latest wallet transactions.\n\nUse /player TELEGRAM_ID anytime.",{reply_markup:adminMenu()});
+      }
+      if (page === "adjust") {
+        adminSteps.set(String(ctx.from.id),{kind:"adjust_user"});
+        return ctx.reply("➕➖ MANUAL BALANCE ADJUSTMENT\n\nSend the player's Telegram ID.\n\nExample: 123456789",{reply_markup:adminMenu()});
       }
       if (page === "winners") {
         const result = await pool.query("SELECT id,winners,prize_pool_cents,house_cents,completed_at FROM game_rounds WHERE status='completed' AND winners <> '[]'::jsonb ORDER BY id DESC LIMIT 10");
@@ -403,6 +406,69 @@ if (BOT_TOKEN) {
     } catch(error) {
       console.error("Admin panel error:",error);
       return ctx.reply("❌ Could not load this Admin Panel section. Please try again.");
+    }
+  });
+  bot.on("message:text", async (ctx,next) => {
+    if (!isAdmin(ctx)) return next();
+    const state = adminSteps.get(String(ctx.from.id));
+    if (!state) return next();
+    const value = ctx.message.text.trim();
+    if (value.startsWith("/")) return next();
+    if (state.kind === "user_lookup" || state.kind === "adjust_user") {
+      if (!/^\\d{5,20}$/.test(value)) return ctx.reply("Enter a valid Telegram ID (5–20 digits):");
+      const found = await pool.query("SELECT id,telegram_id,first_name,username,wallet_cents,created_at FROM users WHERE telegram_id=$1",[value]);
+      if (!found.rows[0]) {
+        adminSteps.delete(String(ctx.from.id));
+        return ctx.reply("❌ Player not found. Check the Telegram ID and try again.",{reply_markup:adminMenu()});
+      }
+      const u = found.rows[0];
+      if (state.kind === "adjust_user") {
+        state.userId = u.id;
+        state.telegramId = u.telegram_id;
+        state.playerName = u.first_name;
+        state.kind = "adjust_amount";
+        return ctx.reply("👤 "+(u.first_name || "Player")+" · "+u.telegram_id+
+          "\\nCurrent Wallet: "+(Number(u.wallet_cents)/100).toFixed(2)+" ETB"+
+          "\\n\\nEnter adjustment amount with + or - sign. Example: +100 or -25");
+      }
+      adminSteps.delete(String(ctx.from.id));
+      const tx = await pool.query("SELECT type,amount_cents,note,created_at FROM wallet_transactions WHERE user_id=$1 ORDER BY id DESC LIMIT 10",[u.id]);
+      const history = tx.rows.map(t=>(Number(t.amount_cents)>=0?"+":"")+(Number(t.amount_cents)/100).toFixed(2)+" ETB · "+t.type+(t.note?" · "+t.note:""));
+      return ctx.reply("👤 USER PROFILE\\nName: "+(u.first_name || "Player")+
+        "\\nUsername: "+(u.username?"@"+u.username:"—")+
+        "\\nTelegram ID: "+u.telegram_id+
+        "\\nWallet: "+(Number(u.wallet_cents)/100).toFixed(2)+" ETB"+
+        "\\nJoined: "+new Date(u.created_at).toLocaleString()+
+        "\\n\\nRecent transactions:\\n"+(history.join("\\n") || "No transactions."),
+        {reply_markup:adminMenu()});
+    }
+    if (state.kind === "adjust_amount") {
+      if (!/^[+-]\\d+(?:\\.\\d{1,2})?$/.test(value)) return ctx.reply("Use a signed amount, e.g. +100 or -25.50 ETB:");
+      const cents = Math.round(Number(value)*100);
+      if (!Number.isSafeInteger(cents) || cents === 0 || Math.abs(cents)>100000000) return ctx.reply("Amount must be between 0.01 and 1,000,000 ETB:");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const locked = await client.query("SELECT wallet_cents FROM users WHERE id=$1 FOR UPDATE",[state.userId]);
+        if (!locked.rows[0]) throw new Error("Player account not found.");
+        if (Number(locked.rows[0].wallet_cents)+cents<0) throw new Error("Adjustment rejected: Wallet cannot become negative.");
+        await client.query("UPDATE users SET wallet_cents=wallet_cents+$1 WHERE id=$2",[cents,state.userId]);
+        await client.query(
+          "INSERT INTO wallet_transactions(user_id,type,amount_cents,reference,note) VALUES($1,'admin_adjustment',$2,$3,$4)",
+          [state.userId,cents,"manual-adjust-"+Date.now()+"-"+ctx.from.id,"Manual adjustment by admin "+ctx.from.id]
+        );
+        await client.query("COMMIT");
+        adminSteps.delete(String(ctx.from.id));
+        const balance = (Number(locked.rows[0].wallet_cents)+cents)/100;
+        return ctx.reply("✅ WALLET UPDATED\\nPlayer: "+state.playerName+" ("+state.telegramId+")"+
+          "\\nAdjustment: "+(cents>0?"+":"")+(cents/100).toFixed(2)+" ETB"+
+          "\\nNew Balance: "+balance.toFixed(2)+" ETB",
+          {reply_markup:adminMenu()});
+      } catch(error) {
+        await client.query("ROLLBACK");
+        adminSteps.delete(String(ctx.from.id));
+        return ctx.reply("❌ "+error.message,{reply_markup:adminMenu()});
+      } finally { client.release(); }
     }
   });
   bot.command("player", async ctx => {
