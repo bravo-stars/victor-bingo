@@ -196,7 +196,7 @@ if (BOT_TOKEN) {
         "\nMethod: " + state.method.toUpperCase() +
         "\nAmount: " + (state.amount/100).toFixed(2) + " ETB";
       if (ADMIN_ID) {
-        try { await bot.api.sendPhoto(ADMIN_ID,proofFileId,{caption}); }
+        try { await bot.api.sendPhoto(ADMIN_ID,proofFileId,{caption,reply_markup:new InlineKeyboard().text("✅ Approve","payment:approve:"+req.rows[0].id).text("❌ Reject","payment:reject:"+req.rows[0].id)}); }
         catch (sendError) { console.error("Could not forward deposit proof to admin:",sendError.message); }
       }
       return ctx.reply("✅ DEPOSIT request submitted.\nRequest ID: #" + req.rows[0].id +
@@ -305,6 +305,33 @@ if (BOT_TOKEN) {
       } catch(error) { await ctx.reply(error.message); }
     });
   }
+  bot.callbackQuery(/^payment:(approve|reject):(\d+)$/, async ctx => {
+    if (!ADMIN_ID || String(ctx.from.id)!==ADMIN_ID) {
+      await ctx.answerCallbackQuery({text:"Admin access denied.",show_alert:true});
+      return;
+    }
+    const match = ctx.callbackQuery.data.match(/^payment:(approve|reject):(\d+)$/);
+    const action = match[1];
+    const id = Number(match[2]);
+    try {
+      const request = await pool.query("SELECT kind,status FROM payment_requests WHERE id=$1",[id]);
+      if (!request.rows[0] || request.rows[0].kind !== "deposit") {
+        await ctx.answerCallbackQuery({text:"Deposit request not found.",show_alert:true});
+        return;
+      }
+      if (request.rows[0].status !== "pending") {
+        await ctx.answerCallbackQuery({text:"This request has already been reviewed.",show_alert:true});
+        return;
+      }
+      await reviewPayment(id,action,ctx.from.id);
+      await ctx.answerCallbackQuery({text:action === "approve" ? "Deposit approved." : "Deposit rejected."});
+      const oldCaption = ctx.callbackQuery.message.caption || "";
+      await ctx.editMessageCaption({caption:oldCaption + "\n\n" + (action === "approve" ? "✅ APPROVED by admin" : "❌ REJECTED by admin"),reply_markup:{inline_keyboard:[]}});
+      await ctx.reply("Request #" + id + " " + (action === "approve" ? "approved" : "rejected") + " successfully.");
+    } catch(error) {
+      await ctx.answerCallbackQuery({text:error.message.slice(0,180),show_alert:true});
+    }
+  });
   bot.catch(err => console.error("Telegram bot error:",err));
   bot.start().catch(err => console.error("Telegram polling failed:",err));
 } else {
