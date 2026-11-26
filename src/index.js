@@ -240,7 +240,20 @@ if (BOT_TOKEN) {
           );
           await client.query("COMMIT");
           walletSteps.delete(String(ctx.from.id));
-          return ctx.reply("✅ WITHDRAWAL request submitted.\\nRequest ID: #" + req.rows[0].id + "\\nAmount: " + (state.amount/100).toFixed(2) + " ETB\\nPayout method: " + state.method.toUpperCase() + "\\nReceiving account: " + state.payoutAccount + "\\nStatus: Pending admin review.\\n\\nNo transaction screenshot or reference number is needed. The amount is held until your withdrawal is reviewed.");
+          const requestId = req.rows[0].id;
+          if (ADMIN_ID) {
+            const adminText = "💸 NEW WITHDRAWAL REQUEST #" + requestId +
+              "\\nPlayer Telegram ID: " + ctx.from.id +
+              "\\nMethod: " + state.method.toUpperCase() +
+              "\\nAmount: " + (state.amount/100).toFixed(2) + " ETB" +
+              "\\nReceiving account: " + state.payoutAccount;
+            try {
+              await bot.api.sendMessage(ADMIN_ID,adminText,{
+                reply_markup:new InlineKeyboard().text("✅ Approve","payment:approve:"+requestId).text("❌ Reject","payment:reject:"+requestId)
+              });
+            } catch(sendError) { console.error("Could not notify admin about withdrawal:",sendError.message); }
+          }
+          return ctx.reply("✅ WITHDRAWAL request submitted.\\nRequest ID: #" + requestId + "\\nAmount: " + (state.amount/100).toFixed(2) + " ETB\\nPayout method: " + state.method.toUpperCase() + "\\nReceiving account: " + state.payoutAccount + "\\nStatus: Pending admin review.\\n\\nThe amount is held until your withdrawal is reviewed.");
         } catch(error) {
           await client.query("ROLLBACK");
           walletSteps.delete(String(ctx.from.id));
@@ -340,8 +353,8 @@ if (BOT_TOKEN) {
     const id = Number(match[2]);
     try {
       const request = await pool.query("SELECT kind,status FROM payment_requests WHERE id=$1",[id]);
-      if (!request.rows[0] || request.rows[0].kind !== "deposit") {
-        await ctx.answerCallbackQuery({text:"Deposit request not found.",show_alert:true});
+      if (!request.rows[0] || !["deposit","withdrawal"].includes(request.rows[0].kind)) {
+        await ctx.answerCallbackQuery({text:"Payment request not found.",show_alert:true});
         return;
       }
       if (request.rows[0].status !== "pending") {
@@ -349,10 +362,15 @@ if (BOT_TOKEN) {
         return;
       }
       await reviewPayment(id,action,ctx.from.id);
-      await ctx.answerCallbackQuery({text:action === "approve" ? "Deposit approved." : "Deposit rejected."});
-      const oldCaption = ctx.callbackQuery.message.caption || "";
-      await ctx.editMessageCaption({caption:oldCaption + "\n\n" + (action === "approve" ? "✅ APPROVED by admin" : "❌ REJECTED by admin"),reply_markup:{inline_keyboard:[]}});
-      await ctx.reply("Request #" + id + " " + (action === "approve" ? "approved" : "rejected") + " successfully.");
+      const kindLabel = request.rows[0].kind === "withdrawal" ? "Withdrawal" : "Deposit";
+      await ctx.answerCallbackQuery({text:kindLabel + (action === "approve" ? " approved." : " rejected.")});
+      const statusText = "\\n\\n" + (action === "approve" ? "✅ APPROVED by admin" : "❌ REJECTED by admin");
+      if (ctx.callbackQuery.message.caption) {
+        await ctx.editMessageCaption({caption:ctx.callbackQuery.message.caption + statusText,reply_markup:{inline_keyboard:[]}});
+      } else {
+        await ctx.editMessageText(ctx.callbackQuery.message.text + statusText,{reply_markup:{inline_keyboard:[]}});
+      }
+      await ctx.reply(kindLabel + " request #" + id + " " + (action === "approve" ? "approved" : "rejected") + " successfully." + (request.rows[0].kind === "withdrawal" && action === "approve" ? " Remember to send the payout to the player's receiving account." : ""));
     } catch(error) {
       await ctx.answerCallbackQuery({text:error.message.slice(0,180),show_alert:true});
     }
