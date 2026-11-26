@@ -228,7 +228,6 @@ function renderSelection(s){
 function renderBalls(s){
  const balls=s.balls||[];
  $("ballCount").textContent=balls.length+"/75";
- $("ballLabel").textContent="("+balls.length+"/75)";
  $("latestBall").textContent=s.latestBall??"—";
  $("drawTimer").textContent=(s.round?.drawCountdown??6)+"s";
  const called=new Set(balls);
