@@ -310,12 +310,9 @@ async function getGameState(user) {
 
   const called = balls.rows.map(r => Number(r.number));
   const soldCount = Number(sold.rows[0].n);
-  // Show the live amount collected from Cartela sales while the round is active.
-  // Once completed, keep the finalized amount stored on the round.
-  const liveDerashCents = soldCount * TICKET_PRICE_CENTS;
-  const derashCents = round.status === "completed"
-    ? Number(round.prize_pool_cents || 0)
-    : liveDerashCents;
+  // DERASH is the players' 80% share of all Cartela sales.
+  // Keep the same calculation during the round and after it completes.
+  const derashCents = Math.floor(soldCount * TICKET_PRICE_CENTS * 0.80);
 
   return {
     round: {
