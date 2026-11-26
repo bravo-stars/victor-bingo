@@ -356,6 +356,7 @@ $("chooseTelebirr").addEventListener("click",()=>chooseDepositMethod("telebirr")
 $("chooseCbe").addEventListener("click",()=>chooseDepositMethod("cbe"));
 $("submitDeposit").addEventListener("click",submitDeposit);
 loadConfig();
+if(new URLSearchParams(window.location.search).get("screen")==="deposit")openDeposit();
 if(tg?.initData){
  socket=io({auth:{initData:tg.initData},transports:["websocket","polling"]});
  socket.on("game:state",s=>{
