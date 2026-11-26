@@ -187,7 +187,7 @@ const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const $=id=>document.getElementById(id);
 const headers={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
-let selectedCard=null,lastRoundId=null,currentState=null,socket=null,selectionSignature=null;
+let selectedCard=null,previewCardData=null,lastRoundId=null,currentState=null,socket=null,selectionSignature=null,previewRequest=0;
 const money=c=>(Number(c||0)/100).toFixed(2)+" ETB";
 function setMessage(text){$("message").textContent=text;}
 function showScreen(name){
@@ -200,6 +200,31 @@ async function api(url,options={}){
  const d=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(d.error||"Request failed");
  return d;
+}
+function drawPreviewIntoSlot(slot, number, card, index) {
+ const host=$(slot);host.innerHTML="";
+ if(!card){host.innerHTML="＋<small>SLOT "+(index+1)+" EMPTY</small>";host.style.height="125px";host.style.display="flex";host.style.padding="";return;}
+ host.style.height="auto";host.style.display="block";host.style.padding="7px";
+ const title=document.createElement("div");title.textContent="Cartela #"+number;title.style.cssText="font-size:12px;font-weight:800;text-align:center;color:#facc15;margin-bottom:6px";
+ const grid=document.createElement("div");grid.className="bingo";
+ card.flat().forEach(n=>{const cell=document.createElement("div");cell.className="cell";cell.style.padding="5px 0";cell.textContent=n===0?"FREE":n;if(n===0)cell.classList.add("free");grid.appendChild(cell);});
+ host.append(title,grid);
+}
+function renderSelectionSlots(s) {
+ const bought=s.tickets||[];
+ for(let i=0;i<2;i++){
+  const t=bought[i];
+  if(t) drawPreviewIntoSlot(i===0?"slot1":"slot2",t.cardNumber,t.card,i);
+  else if(i===bought.length && selectedCard && previewCardData?.cardNumber===selectedCard)
+   drawPreviewIntoSlot(i===0?"slot1":"slot2",selectedCard,previewCardData.card,i);
+  else drawPreviewIntoSlot(i===0?"slot1":"slot2",null,null,i);
+ }
+}
+async function loadCardPreview(number) {
+ const request=++previewRequest;previewCardData=null;
+ if(currentState)renderSelectionSlots(currentState);
+ try{const d=await api("/api/card-preview/"+number);if(request!==previewRequest||selectedCard!==number)return;previewCardData=d;if(currentState)renderSelectionSlots(currentState);}
+ catch(e){if(request===previewRequest)setMessage(e.message);}
 }
 function renderSelection(s){
  const box=$("cardSelection");
@@ -218,13 +243,14 @@ function renderSelection(s){
   else if(selectedCard===n){b.classList.add("selected");}
   b.addEventListener("click",()=>{
    selectedCard=n;
+   previewCardData=null;
    renderSelection(currentState);
+   loadCardPreview(n);
   });
   box.appendChild(b);
   }
  }
- const ownCount=(s.tickets||[]).length;
- ["slot1","slot2"].forEach((id,i)=>{const t=(s.tickets||[])[i];$(id).innerHTML=t?"#"+t.cardNumber+"<small>SLOT "+(i+1)+" SELECTED</small>":"＋<small>SLOT "+(i+1)+" EMPTY</small>";});
+ const ownCount=(s.tickets||[]).length;\n  renderSelectionSlots(s);
  $("buy").disabled=!selectedCard||!s.round||s.round.status!=="waiting"||s.round.countdown<=0||ownCount>=2;
  $("selectionHint").textContent=ownCount>=2
   ?"You already have the maximum of 2 Cartelas."
@@ -341,7 +367,7 @@ async function buyTicket(){
  $("buy").disabled=true;
  try{
   const result=await api("/api/tickets",{method:"POST",body:JSON.stringify({cardNumber})});
-  selectedCard=null;
+  selectedCard=null;previewCardData=null;previewRequest++;
   setMessage("Cartela #"+result.ticket.cardNumber+" purchased. 10 ETB deducted from Wallet.");
   await refresh();
  }catch(e){
