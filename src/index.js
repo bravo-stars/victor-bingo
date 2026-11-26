@@ -329,9 +329,96 @@ if (BOT_TOKEN) {
     await ctx.answerCallbackQuery({text:"Registration successful!"});
     await ctx.reply("✅ You are registered in Victor Bingo!\nYour Telegram account is linked to your Wallet.");
   });
+  const adminMenu = () => new InlineKeyboard()
+    .text("📊 Dashboard", "admin:dashboard").row()
+    .text("📥 Pending Payments", "admin:pending").row()
+    .text("👥 Players", "admin:players").text("🏆 Winners", "admin:winners").row()
+    .text("💳 Transactions", "admin:transactions");
+  const isAdmin = ctx => ADMIN_ID && String(ctx.from.id) === ADMIN_ID;
   bot.command("admin", async ctx => {
-    if (!ADMIN_ID || String(ctx.from.id)!==ADMIN_ID) return ctx.reply("⛔ Admin access denied.");
-    await ctx.reply("Victor Bingo Admin\n/pending - View payment requests\n/approve_deposit ID\n/reject_deposit ID\n/approve_withdrawal ID\n/reject_withdrawal ID");
+    if (!isAdmin(ctx)) return ctx.reply("⛔ Admin access denied.");
+    await ctx.reply("🛠 VICTOR BINGO · ADMIN PANEL\n\nChoose what you want to manage:", {reply_markup:adminMenu()});
+  });
+  bot.callbackQuery(/^admin:(dashboard|pending|players|winners|transactions)$/, async ctx => {
+    if (!isAdmin(ctx)) return ctx.answerCallbackQuery({text:"Admin access denied.",show_alert:true});
+    const page = ctx.match[1];
+    await ctx.answerCallbackQuery();
+    try {
+      if (page === "dashboard") {
+        const [users, wallet, payments, round, sales] = await Promise.all([
+          pool.query("SELECT COUNT(*)::int AS n FROM users"),
+          pool.query("SELECT COALESCE(SUM(wallet_cents),0)::bigint AS n FROM users"),
+          pool.query("SELECT kind,status,COUNT(*)::int AS n,COALESCE(SUM(amount_cents),0)::bigint AS total FROM payment_requests GROUP BY kind,status"),
+          pool.query("SELECT id,status,prize_pool_cents,house_cents FROM game_rounds ORDER BY id DESC LIMIT 1"),
+          pool.query("SELECT COUNT(*)::int AS n,COALESCE(SUM(amount_cents),0)::bigint AS total FROM wallet_transactions WHERE type='ticket_purchase'")
+        ]);
+        const paymentLines = payments.rows.map(x => x.kind.toUpperCase()+" "+x.status+": "+x.n+" ("+(Number(x.total)/100).toFixed(2)+" ETB)");
+        const rr = round.rows[0];
+        return ctx.reply("📊 ADMIN DASHBOARD\n\n👥 Players: "+users.rows[0].n+
+          "\n💰 Total Wallets: "+(Number(wallet.rows[0].n)/100).toFixed(2)+" ETB"+
+          "\n🎟 Ticket sales: "+sales.rows[0].n+" · "+(Number(sales.rows[0].total)/100).toFixed(2)+" ETB"+
+          "\n🎮 Current round: "+(rr ? "#"+rr.id+" · "+rr.status : "Not started")+
+          "\n🏆 Last prize pool: "+(rr ? (Number(rr.prize_pool_cents)/100).toFixed(2) : "0.00")+" ETB"+
+          "\n🏠 Last house share: "+(rr ? (Number(rr.house_cents)/100).toFixed(2) : "0.00")+" ETB"+
+          "\n\n💳 Payment summary\n"+(paymentLines.join("\n") || "No payment requests."),
+          {reply_markup:adminMenu()});
+      }
+      if (page === "pending") {
+        const result = await pool.query("SELECT p.id,p.kind,p.method,p.amount_cents,p.sender_reference,p.payout_account,p.proof_file_id,u.telegram_id,u.first_name FROM payment_requests p JOIN users u ON u.id=p.user_id WHERE p.status='pending' ORDER BY p.id LIMIT 20");
+        if (!result.rows.length) return ctx.reply("✅ No pending payment requests.",{reply_markup:adminMenu()});
+        for (const p of result.rows) {
+          const msg = "📥 REQUEST #"+p.id+" · "+p.kind.toUpperCase()+
+            "\nPlayer: "+(p.first_name || "Player")+" · "+p.telegram_id+
+            "\nMethod: "+p.method.toUpperCase()+
+            "\nAmount: "+(Number(p.amount_cents)/100).toFixed(2)+" ETB"+
+            (p.sender_reference ? "\nReference: "+p.sender_reference : "")+
+            (p.payout_account ? "\nPayout account: "+p.payout_account : "")+
+            (p.proof_file_id ? "\n📷 Payment screenshot attached" : "");
+          const kb = new InlineKeyboard().text("✅ Approve","payment:approve:"+p.id).text("❌ Reject","payment:reject:"+p.id);
+          if (p.proof_file_id) await bot.api.sendPhoto(ctx.chat.id,p.proof_file_id,{caption:msg,reply_markup:kb});
+          else await ctx.reply(msg,{reply_markup:kb});
+        }
+        return;
+      }
+      if (page === "players") {
+        const result = await pool.query("SELECT telegram_id,first_name,username,wallet_cents,created_at FROM users ORDER BY id DESC LIMIT 15");
+        const lines = result.rows.map(u => "👤 "+(u.first_name || "Player")+
+          (u.username ? " (@"+u.username+")" : "")+"\nID: "+u.telegram_id+
+          " · Wallet: "+(Number(u.wallet_cents)/100).toFixed(2)+" ETB");
+        return ctx.reply("👥 LATEST PLAYERS\n\n"+(lines.join("\n\n") || "No players yet.")+
+          "\n\nUse /player TELEGRAM_ID to view one player.",{reply_markup:adminMenu()});
+      }
+      if (page === "winners") {
+        const result = await pool.query("SELECT id,winners,prize_pool_cents,house_cents,completed_at FROM game_rounds WHERE status='completed' AND winners <> '[]'::jsonb ORDER BY id DESC LIMIT 10");
+        const lines = result.rows.flatMap(r => (r.winners || []).map(w =>
+          "🏆 Round #"+r.id+" · "+(w.name || "Player")+" · Cartela #"+w.cardNumber+
+          "\nPrize: "+(Number(w.prizeCents || 0)/100).toFixed(2)+" ETB · "+(w.pattern || "Bingo")+
+          "\nHouse: "+(Number(r.house_cents || 0)/100).toFixed(2)+" ETB"));
+        return ctx.reply("🏆 RECENT WINNERS\n\n"+(lines.join("\n\n") || "No winners recorded yet."),{reply_markup:adminMenu()});
+      }
+      const result = await pool.query("SELECT w.type,w.amount_cents,w.reference,w.note,w.created_at,u.telegram_id,u.first_name FROM wallet_transactions w JOIN users u ON u.id=w.user_id ORDER BY w.id DESC LIMIT 20");
+      const lines = result.rows.map(x => (Number(x.amount_cents)>=0?"+":"")+(Number(x.amount_cents)/100).toFixed(2)+" ETB · "+x.type+
+        "\n"+(x.first_name || "Player")+" ("+x.telegram_id+")"+(x.note ? " · "+x.note : ""));
+      return ctx.reply("💳 RECENT WALLET TRANSACTIONS\n\n"+(lines.join("\n\n") || "No transactions yet."),{reply_markup:adminMenu()});
+    } catch(error) {
+      console.error("Admin panel error:",error);
+      return ctx.reply("❌ Could not load this Admin Panel section. Please try again.");
+    }
+  });
+  bot.command("player", async ctx => {
+    if (!isAdmin(ctx)) return ctx.reply("⛔ Admin access denied.");
+    const telegramId = String(ctx.match || "").trim();
+    if (!/^\\d{5,20}$/.test(telegramId)) return ctx.reply("Usage: /player TELEGRAM_ID");
+    const result = await pool.query("SELECT id,telegram_id,first_name,username,wallet_cents,created_at FROM users WHERE telegram_id=$1",[telegramId]);
+    if (!result.rows[0]) return ctx.reply("Player not found.");
+    const u = result.rows[0];
+    const tx = await pool.query("SELECT type,amount_cents,note FROM wallet_transactions WHERE user_id=$1 ORDER BY id DESC LIMIT 10",[u.id]);
+    return ctx.reply("👤 PLAYER DETAILS\nName: "+u.first_name+
+      "\nUsername: "+(u.username ? "@"+u.username : "—")+
+      "\nTelegram ID: "+u.telegram_id+
+      "\nWallet: "+(Number(u.wallet_cents)/100).toFixed(2)+" ETB"+
+      "\nJoined: "+new Date(u.created_at).toLocaleString()+
+      "\n\nRecent transactions:\n"+(tx.rows.map(t=>(Number(t.amount_cents)>=0?"+":"")+(Number(t.amount_cents)/100).toFixed(2)+" ETB · "+t.type+(t.note?" · "+t.note:"")).join("\n") || "None"));
   });
   bot.command("pending", async ctx => {
     if (!ADMIN_ID || String(ctx.from.id)!==ADMIN_ID) return ctx.reply("⛔ Admin access denied.");
