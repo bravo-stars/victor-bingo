@@ -159,20 +159,29 @@ if (BOT_TOKEN) {
       });
       return ctx.reply("📜 Wallet History\n\n" + lines.join("\n"));
     }
+    if (action === "deposit") {
+      walletSteps.set(String(ctx.from.id), {kind:"deposit",step:"method"});
+      return ctx.reply("💳 Select Deposit Method\n\n📱 Telebirr\n🏦 CBE Birr\n\nChoose how you made the payment:",{reply_markup:paymentMethodMenu()});
+    }
     walletSteps.set(String(ctx.from.id), {kind:action,step:"amount"});
-    return ctx.reply(action === "deposit"
-      ? "💳 Deposit request\n\nPayment account: Samuel Adino\nTelebirr: 0945723383\nCBE Birr: 0945723383\n\nEnter amount in ETB:"
-      : "💸 Withdrawal request\n\nEnter amount in ETB:");
+    return ctx.reply("💸 Withdrawal request\n\nEnter amount in ETB:");
   });
   bot.callbackQuery(/^method:(telebirr|cbe)$/, async ctx => {
     const state = walletSteps.get(String(ctx.from.id));
     if (!state || state.step !== "method") return ctx.answerCallbackQuery({text:"Start a new Wallet request first."});
     state.method = ctx.match[1];
-    state.step = state.kind === "withdrawal" ? "account" : "reference";
+    state.step = state.kind === "withdrawal" ? "account" : "amount";
     await ctx.answerCallbackQuery();
-    await ctx.reply(state.kind === "withdrawal"
-      ? "Enter the Telebirr/CBE Birr phone or account number where you want to receive the money:"
-      : "Send the payment transaction/reference number, upload a payment screenshot, or type SKIP:");
+    if (state.kind === "withdrawal") {
+      return ctx.reply("Enter the Telebirr/CBE Birr phone or account number where you want to receive the money:");
+    }
+    const paymentNumber = state.method === "telebirr"
+      ? (process.env.TELEBIRR_NUMBER || "0945723383")
+      : (process.env.CBE_BIRR_NUMBER || "0945723383");
+    return ctx.reply("💳 DEPOSIT · " + state.method.toUpperCase() +
+      "\nAccount name: " + (process.env.PAYMENT_ACCOUNT_NAME || "Samuel Adino") +
+      "\nPayment number: " + paymentNumber +
+      "\n\nEnter the amount you paid in ETB:");
   });
   bot.on("message:photo", async (ctx,next) => {
     const state = walletSteps.get(String(ctx.from.id));
@@ -216,6 +225,10 @@ if (BOT_TOKEN) {
       const amount = Number(value);
       if (!Number.isFinite(amount) || amount < 1 || amount > 1000000) return ctx.reply("Enter a valid amount of at least 1 ETB:");
       state.amount = Math.round(amount * 100);
+      if (state.kind === "deposit") {
+        state.step = "reference";
+        return ctx.reply("Send the payment transaction/reference number, upload a payment screenshot, or type SKIP:");
+      }
       state.step = "method";
       return ctx.reply("Choose payment method:",{reply_markup:paymentMethodMenu()});
     }
@@ -297,7 +310,7 @@ if (BOT_TOKEN) {
     );
     const keyboard = new InlineKeyboard().webApp("🎮 Play Victor Bingo", BASE_URL + "/").row()
       .text("💰 My balance", "wallet:balance").row()
-      .webApp("💳 Deposit", BASE_URL + "/?screen=deposit").row()
+      .text("💳 Deposit", "wallet:deposit").row()
       .text("💸 Withdrawal", "wallet:withdrawal").row()
       .text("📜 Transaction history", "wallet:history").row()
       .text("📖 Instruction", "instruction").row()
