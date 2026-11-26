@@ -309,17 +309,25 @@ async function getGameState(user) {
   }
 
   const called = balls.rows.map(r => Number(r.number));
+  const soldCount = Number(sold.rows[0].n);
+  // Show the live amount collected from Cartela sales while the round is active.
+  // Once completed, keep the finalized amount stored on the round.
+  const liveDerashCents = soldCount * TICKET_PRICE_CENTS;
+  const derashCents = round.status === "completed"
+    ? Number(round.prize_pool_cents || 0)
+    : liveDerashCents;
+
   return {
     round: {
       id: Number(round.id),
       status: round.status,
       countdown,
       drawCountdown,
-      sold: Number(sold.rows[0].n),
+      sold: soldCount,
       players: Number(players.rows[0].n),
       soldCardNumbers: soldCards.rows.map(r => Number(r.card_number)),
       winners: round.winners || [],
-      prizePoolCents: Number(round.prize_pool_cents || 0),
+      prizePoolCents: derashCents,
       houseCents: Number(round.house_cents || 0)
     },
     tickets: tickets.rows.map(t => ({
