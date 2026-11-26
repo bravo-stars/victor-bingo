@@ -64,3 +64,5 @@ CREATE INDEX IF NOT EXISTS wallet_transactions_user_idx ON wallet_transactions(u
 CREATE INDEX IF NOT EXISTS payment_requests_status_idx ON payment_requests(status, created_at);
 
 ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS payout_account TEXT;
+
+ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS proof_file_id TEXT;
