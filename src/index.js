@@ -3,7 +3,7 @@ const { Server } = require("socket.io");
 const { Bot, InlineKeyboard } = require("grammy");
 const { pool, testDbConnection, migrateDatabase } = require("./db");
 const { requireTelegramUser, verifyTelegramInitData } = require("./auth");
-const { gameTick, buyTicket, getGameState } = require("./game");
+const { gameTick, buyTicket, previewCard, getGameState } = require("./game");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +26,14 @@ app.get("/api/config", (req,res) => res.json({
 app.get("/api/state", requireTelegramUser, async (req,res) => {
   try { res.json(await getGameState(req.victorUser)); }
   catch(error) { console.error(error); res.status(500).json({error:"Could not load game state."}); }
+});
+
+app.get("/api/card-preview/:cardNumber", requireTelegramUser, async (req,res) => {
+  try { res.json(await previewCard(req.victorUser.telegram_id, req.params.cardNumber)); }
+  catch(error) {
+    const messages={INVALID_CARD:"Choose a valid Cartela number from 1 to 600.",CARD_SOLD:"This Cartela has already been sold.",ROUND_CLOSED:"This round is closed."};
+    res.status(400).json({error:messages[error.message]||"Could not preview Cartela."});
+  }
 });
 
 app.post("/api/tickets", requireTelegramUser, async (req,res) => {
