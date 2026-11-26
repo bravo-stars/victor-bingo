@@ -115,6 +115,12 @@ body{background:#0b1220;color:#f8fafc}
 .progress{background:#334155}
 .progress-bar{background:#facc15}
 
+
+/* Clear second-page indicators: joined players and compact latest-ball badge. */
+#game .panel:first-child .stats .stat:nth-child(3) small{font-size:10px;letter-spacing:.3px}
+#game .panel:first-child .stats .stat:nth-child(3) strong{font-size:22px;color:#facc15}
+#game #latestBall{width:34px;height:34px;margin:0 auto;border-radius:50%;display:grid;place-items:center;background:#facc15;color:#172033!important;font-size:14px!important;font-weight:900;line-height:1;overflow-wrap:normal;box-shadow:0 0 0 2px #fff3}
+
 </style>
 </head>
 <body>
@@ -320,7 +326,7 @@ function renderState(s){
  if(r?.status==="drawing"){
   labels[0].textContent="DERASH";values[0].textContent=money(r.prizePoolCents);
   labels[1].textContent="BALLS";values[1].textContent=(s.balls||[]).length+"/75";
-  labels[2].textContent="PLAYERS";values[2].textContent=r.players??0;
+  labels[2].textContent="PLAYERS JOINED";values[2].textContent=r.players??0;
   $("topStats").children[3].classList.add("hidden");
  }else{
   labels[0].textContent="ROOM";values[0].textContent="VIP 💰💰";
