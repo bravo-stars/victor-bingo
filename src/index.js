@@ -297,7 +297,7 @@ if (BOT_TOKEN) {
     );
     const keyboard = new InlineKeyboard().webApp("🎮 Play Victor Bingo", BASE_URL + "/").row()
       .text("💰 My balance", "wallet:balance").row()
-      .text("💳 Deposit", "wallet:deposit").row()
+      .webApp("💳 Deposit", BASE_URL + "/?screen=deposit").row()
       .text("💸 Withdrawal", "wallet:withdrawal").row()
       .text("📜 Transaction history", "wallet:history").row()
       .text("📖 Instruction", "instruction").row()
