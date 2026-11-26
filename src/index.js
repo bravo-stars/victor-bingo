@@ -222,8 +222,33 @@ if (BOT_TOKEN) {
     if (state.step === "account") {
       if (value.length < 5 || value.length > 80) return ctx.reply("Enter a valid receiving account or phone number:");
       state.payoutAccount = value;
+      if (state.kind === "withdrawal") {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const user = await client.query("SELECT id,wallet_cents FROM users WHERE telegram_id=$1 FOR UPDATE",[String(ctx.from.id)]);
+          if (!user.rows[0]) throw new Error("Open the game with /start first so your player account is created.");
+          if (Number(user.rows[0].wallet_cents) < state.amount) throw new Error("Insufficient Wallet balance.");
+          await client.query("UPDATE users SET wallet_cents=wallet_cents-$1 WHERE id=$2",[state.amount,user.rows[0].id]);
+          const req = await client.query(
+            "INSERT INTO payment_requests(user_id,kind,method,amount_cents,payout_account,sender_reference) VALUES($1,'withdrawal',$2,$3,$4,NULL) RETURNING id",
+            [user.rows[0].id,state.method,state.amount,state.payoutAccount]
+          );
+          await client.query(
+            "INSERT INTO wallet_transactions(user_id,type,amount_cents,reference,note) VALUES($1,'withdrawal_hold',$2,$3,$4)",
+            [user.rows[0].id,-state.amount,"withdrawal-request-"+req.rows[0].id,"Withdrawal request pending review"]
+          );
+          await client.query("COMMIT");
+          walletSteps.delete(String(ctx.from.id));
+          return ctx.reply("✅ WITHDRAWAL request submitted.\\nRequest ID: #" + req.rows[0].id + "\\nAmount: " + (state.amount/100).toFixed(2) + " ETB\\nPayout method: " + state.method.toUpperCase() + "\\nReceiving account: " + state.payoutAccount + "\\nStatus: Pending admin review.\\n\\nNo transaction screenshot or reference number is needed. The amount is held until your withdrawal is reviewed.");
+        } catch(error) {
+          await client.query("ROLLBACK");
+          walletSteps.delete(String(ctx.from.id));
+          return ctx.reply("❌ " + error.message);
+        } finally { client.release(); }
+      }
       state.step = "reference";
-      return ctx.reply("Enter a transaction/reference number, or type SKIP:");
+      return ctx.reply("Send the payment transaction/reference number, upload a payment screenshot, or type SKIP:");
     }
     if (state.step === "reference") {
       state.reference = value.toUpperCase() === "SKIP" ? null : value.slice(0,120);
