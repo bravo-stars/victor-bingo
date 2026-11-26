@@ -195,7 +195,7 @@ const $=id=>document.getElementById(id);
 const headers={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
 let selectedCard=null,previewCardData=null,lastRoundId=null,currentState=null,socket=null,selectionSignature=null,previewRequest=0;
 const money=c=>(Number(c||0)/100).toFixed(2)+" ETB";
-function setMessage(text){$("message").textContent=text;}
+function setMessage(text){const el=$("message");el.textContent=text;el.classList.toggle("hidden",!text);}
 function showScreen(name){
  $("lobby").classList.toggle("hidden",name!=="lobby");
  $("game").classList.toggle("hidden",name!=="game");
@@ -374,7 +374,7 @@ async function buyTicket(){
  try{
   const result=await api("/api/tickets",{method:"POST",body:JSON.stringify({cardNumber})});
   selectedCard=null;previewCardData=null;previewRequest++;
-  setMessage("Cartela #"+result.ticket.cardNumber+" purchased. 10 ETB deducted from Wallet.");
+  setMessage(""); // Purchase and wallet deduction continue silently.
   await refresh();
  }catch(e){
   setMessage(e.message);
