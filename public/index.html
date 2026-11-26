@@ -65,6 +65,11 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .progress{height:9px;background:#e2e8f0;border-radius:20px;overflow:hidden;margin-top:16px}.progress-bar{height:100%;background:#facc15;width:100%;transition:width .8s linear}
 @media(max-width:480px){body{padding:12px 10px 0}.stats{gap:5px}.stat{padding:10px 3px}.stat strong{font-size:15px}#cardSelection{grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;max-height:calc(100dvh - 450px);min-height:260px}.card-choice{font-size:12px;padding:9px 0}#game{grid-template-columns:minmax(110px,.8fr) minmax(0,1fr);gap:7px}#game .panel:nth-child(2),#game .panel:nth-child(3){padding:7px 5px}.cell{padding:8px 0}}
 
+
+/* Hide Cartela heading and helper text; keep the seconds countdown visible. */
+#lobby .panel h2,
+#lobby .panel > p.muted:not(#selectionHint){display:none}
+
 /* Restored BravoBingo dark navy + gold appearance; layout preserved. */
 :root{color-scheme:dark;--ink:#f8fafc;--muted:#aebbd0;--line:#334155;--paper:#111827;--white:#1e293b;--blue:#d4a72c;--green:#15803d;--yellow:#facc15}
 body{background:#0b1220;color:#f8fafc}
