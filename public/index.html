@@ -81,20 +81,19 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <section id="depositScreen" class="hidden">
  <div class="panel">
   <button class="secondary" id="closeDeposit">← Back to Game</button>
-  <h2 style="margin-top:14px">💳 Deposit request</h2>
-  <div class="deposit-details">
-   <strong>Payment account:</strong> <span id="paymentName">Samuel Adino</span><br>
-   <strong>Telebirr:</strong> <span id="paymentTelebirr">0945723383</span><br>
-   <strong>CBE Birr:</strong> <span id="paymentCbe">0945723383</span>
-  </div>
-  <label for="depositAmount">Enter amount in ETB:</label>
-  <input class="field" id="depositAmount" type="number" min="1" step="0.01" placeholder="Enter amount">
-  <p class="muted">Select the payment method you used:</p>
+  <h2 style="margin-top:14px">💳 የማስገቢያ መንገድ ይምረጡ (Select Deposit Method)</h2>
+  <p class="muted">እባክዎ ሂሳብ ለመሙላት የሚጠቀሙበትን መንገድ ይምረጡ:</p>
   <div class="method-grid">
-   <button class="method-btn" id="chooseTelebirr">📱<br>Telebirr</button>
-   <button class="method-btn" id="chooseCbe">🏦<br>CBE Birr</button>
+   <button class="method-btn" id="chooseTelebirr">📱<br>Tele birr</button>
+   <button class="method-btn" id="chooseCbe">🏦<br>Cbe birr</button>
   </div>
   <div id="depositForm" class="hidden">
+   <div class="deposit-details">
+    <strong>Payment account:</strong> <span id="paymentName">Samuel Adino</span><br>
+    <strong id="methodAccountLabel">Telebirr:</strong> <span id="paymentNumber">0945723383</span>
+   </div>
+   <label for="depositAmount">Enter amount in ETB:</label>
+   <input class="field" id="depositAmount" type="number" min="1" step="0.01" placeholder="Enter amount">
    <label for="depositReference">Transaction ID / Reference (optional)</label>
    <input class="field" id="depositReference" type="text" maxlength="120" placeholder="Enter payment reference">
    <p class="muted">Your Wallet is credited only after admin verification.</p>
@@ -182,8 +181,7 @@ async function loadConfig(){
   paymentConfig=c;
   if(c.botUrl){$("botlink").href=c.botUrl;}
   $("paymentName").textContent=c.paymentName||"Samuel Adino";
-  $("paymentTelebirr").textContent=c.telebirrNumber||"0945723383";
-  $("paymentCbe").textContent=c.cbeNumber||"0945723383";
+
  }catch(e){}
 }
 function openDeposit(){
@@ -195,8 +193,8 @@ function chooseDepositMethod(method){
  depositMethod=method;
  $("chooseTelebirr").classList.toggle("active",method==="telebirr");
  $("chooseCbe").classList.toggle("active",method==="cbe");
- $("methodAccountLabel").textContent=method==="telebirr"?"Telebirr Number:":"CBE Birr ቁጥር:";
- $("paymentNumber").textContent=method==="telebirr"?(paymentConfig?.telebirrNumber||"—"):(paymentConfig?.cbeNumber||"—");
+ $("methodAccountLabel").textContent=method==="telebirr"?"Telebirr:":"CBE Birr:";
+ $("paymentNumber").textContent=method==="telebirr"?(paymentConfig?.telebirrNumber||"0945723383"):(paymentConfig?.cbeNumber||"0945723383");
  $("depositForm").classList.remove("hidden");
  $("depositMessage").classList.add("hidden");
 }
