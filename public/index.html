@@ -328,10 +328,16 @@ function renderSelection(s) {
   " ETB · Green = yours · Orange = sold · Yellow = selected";
 }
 
+function formatBallLabel(number){
+ if(!number)return "—";
+ const n=Number(number);
+ const letter=n<=15?"B":n<=30?"I":n<=45?"N":n<=60?"G":"O";
+ return letter+"-"+n;
+}
 function renderBalls(s){
  const balls=s.balls||[];
  $("ballCount").textContent=balls.length+"/75";
- $("latestBallBadge").textContent=s.latestBall ? "B-"+s.latestBall : "B-—";
+ $("latestBallBadge").textContent=formatBallLabel(s.latestBall);
  const called=new Set(balls);
  const box=$("balls");box.innerHTML="";
  const heads=["B","I","N","G","O"];
