@@ -126,6 +126,7 @@ body{background:#0b1220;color:#f8fafc}
 
 /* GoodBingo-inspired active game page layout */
 #game{position:relative;grid-template-columns:minmax(0,.82fr) minmax(0,1fr);gap:8px}
+#game .stats.game-mode{grid-template-columns:repeat(3,minmax(0,1fr))}
 #game .panel:first-child{grid-column:1/-1;padding:8px 12px 9px}
 #game .panel:first-child .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding-right:74px}
 #game .panel:first-child .stat{padding:0 2px}
@@ -201,8 +202,8 @@ body{background:#0b1220;color:#f8fafc}
    <div class="stat"><small>PLAYERS</small><strong id="playersCount">0</strong></div>
   </div>
   <p class="muted">Balls are drawn automatically by the server. Winning patterns: row, column, diagonal or four corners. Bingo is validated automatically by the server.</p>
+  <div class="latest-ball-bubble" id="latestBallBadge">B-—</div>
  </div>
- <div class="latest-ball-bubble" id="latestBallBadge">B-—</div>
  <div class="panel">
   <h2>BINGO</h2>
   <div id="balls"></div>
