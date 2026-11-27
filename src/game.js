@@ -173,11 +173,21 @@ async function drawNextBall(client, roundId) {
   }
 }
 
-async function buyTicket(telegramId, requestedCardNumber = null) {
+async function buyTickets(telegramId, requestedCardNumbers) {
+  if (!Array.isArray(requestedCardNumbers) ||
+      requestedCardNumbers.length < 1 ||
+      requestedCardNumbers.length > 2) {
+    throw new Error("INVALID_CARD");
+  }
+  const numbers = requestedCardNumbers.map(Number);
+  if (numbers.some(n => !Number.isInteger(n) || n < 1 || n > 600) ||
+      new Set(numbers).size !== numbers.length) {
+    throw new Error("INVALID_CARD");
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    // Lock the round before the wallet row, matching the game engine's lock order.
     const roundResult = await client.query(
       "SELECT * FROM game_rounds WHERE status='waiting' ORDER BY id DESC LIMIT 1 FOR UPDATE"
     );
@@ -197,59 +207,63 @@ async function buyTicket(telegramId, requestedCardNumber = null) {
       "SELECT COUNT(*)::int AS n FROM round_tickets WHERE round_id=$1 AND user_id=$2",
       [round.id, user.id]
     );
-    if (Number(ownedResult.rows[0].n) >= MAX_TICKETS_PER_USER) {
+    if (Number(ownedResult.rows[0].n) + numbers.length > MAX_TICKETS_PER_USER) {
       throw new Error("MAX_TICKETS");
-    }
-    if (Number(user.wallet_cents) < TICKET_PRICE_CENTS) {
-      throw new Error("INSUFFICIENT_BALANCE");
     }
 
     const occupied = await client.query(
-      "SELECT card_number FROM round_tickets WHERE round_id=$1",
-      [round.id]
+      "SELECT card_number FROM round_tickets WHERE round_id=$1 AND card_number=ANY($2::int[])",
+      [round.id, numbers]
     );
-    const used = new Set(occupied.rows.map(r => Number(r.card_number)));
-    const available = Array.from({ length: 600 }, (_, i) => i + 1)
-      .filter(n => !used.has(n));
-    if (!available.length) throw new Error("ROOM_FULL");
+    if (occupied.rowCount) throw new Error("CARD_SOLD");
 
-    let cardNumber;
-    if (requestedCardNumber !== null && requestedCardNumber !== undefined) {
-      const requested = Number(requestedCardNumber);
-      if (!Number.isInteger(requested) || requested < 1 || requested > 600) {
-        throw new Error("INVALID_CARD");
-      }
-      if (used.has(requested)) throw new Error("CARD_SOLD");
-      cardNumber = requested;
-    } else {
-      cardNumber = available[crypto.randomInt(available.length)];
+    const totalCost = numbers.length * TICKET_PRICE_CENTS;
+    if (Number(user.wallet_cents) < totalCost) throw new Error("INSUFFICIENT_BALANCE");
+
+    const tickets = [];
+    for (const cardNumber of numbers) {
+      const card = makeCard(String(round.id) + ":" + String(cardNumber));
+      const inserted = await client.query(
+        "INSERT INTO round_tickets(round_id,user_id,card_number,card) VALUES($1,$2,$3,$4::jsonb) RETURNING id,card_number,card",
+        [round.id, user.id, cardNumber, JSON.stringify(card)]
+      );
+      const ticket = inserted.rows[0];
+      await client.query(
+        "INSERT INTO wallet_transactions(user_id,type,amount_cents,reference,note) VALUES($1,'ticket_purchase',$2,$3,$4)",
+        [user.id, -TICKET_PRICE_CENTS, `ticket-${ticket.id}`, `Cartela #${cardNumber}`]
+      );
+      tickets.push(ticket);
     }
-    const card = makeCard(String(round.id)+':'+String(cardNumber));
 
     await client.query(
       "UPDATE users SET wallet_cents=wallet_cents-$1 WHERE id=$2",
-      [TICKET_PRICE_CENTS, user.id]
+      [totalCost, user.id]
     );
-    const ticket = await client.query(
-      "INSERT INTO round_tickets(round_id,user_id,card_number,card) VALUES($1,$2,$3,$4::jsonb) RETURNING id,card_number,card",
-      [round.id, user.id, cardNumber, JSON.stringify(card)]
-    );
-    await client.query(
-      "INSERT INTO wallet_transactions(user_id,type,amount_cents,reference,note) VALUES($1,'ticket_purchase',$2,$3,$4)",
-      [user.id, -TICKET_PRICE_CENTS, `ticket-${ticket.rows[0].id}`, `Cartela #${cardNumber}`]
-    );
-
     await client.query("COMMIT");
     return {
-      ticket: ticket.rows[0],
-      balanceCents: Number(user.wallet_cents) - TICKET_PRICE_CENTS
+      tickets,
+      balanceCents: Number(user.wallet_cents) - totalCost
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    if (error.code === "23505") throw new Error("CARD_SOLD");
     throw error;
   } finally {
     client.release();
   }
+}
+
+async function buyTicket(telegramId, requestedCardNumber = null) {
+  const numbers = requestedCardNumber === null || requestedCardNumber === undefined
+    ? [] : [requestedCardNumber];
+  if (!numbers.length) {
+    throw new Error("INVALID_CARD");
+  }
+  const result = await buyTickets(telegramId, numbers);
+  return {
+    ticket: result.tickets[0],
+    balanceCents: result.balanceCents
+  };
 }
 
 async function previewCard(telegramId, requestedCardNumber) {
@@ -339,7 +353,7 @@ async function getGameState(user) {
 }
 
 module.exports = {
-  gameTick, buyTicket, previewCard, getGameState,
+  gameTick, buyTicket, buyTickets, previewCard, getGameState,
   TICKET_PRICE_CENTS, COUNTDOWN_SECONDS,
   BALL_INTERVAL_MS, RESULT_SECONDS, MAX_TICKETS_PER_USER
 };
