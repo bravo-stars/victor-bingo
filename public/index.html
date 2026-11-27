@@ -123,6 +123,44 @@ body{background:#0b1220;color:#f8fafc}
 
 /* Keep selection guidance available internally, but hide it on the screen. */
 #selectionHint{display:none!important;}
+
+/* GoodBingo-inspired active game page layout */
+#game{position:relative;grid-template-columns:minmax(0,.82fr) minmax(0,1fr);gap:8px}
+#game .panel:first-child{grid-column:1/-1;padding:8px 12px 9px}
+#game .panel:first-child .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding-right:74px}
+#game .panel:first-child .stat{padding:0 2px}
+#game .panel:first-child .stat small{font-size:10px;letter-spacing:.3px;margin-bottom:3px}
+#game .panel:first-child .stat strong{font-size:clamp(15px,3.7vw,22px);white-space:nowrap}
+#game .panel:first-child .muted{display:none}
+.latest-ball-bubble{position:absolute;z-index:5;right:5px;top:2px;width:clamp(76px,23vw,112px);height:clamp(76px,23vw,112px);border-radius:50%;display:grid;place-items:center;background:#2563eb;color:#fff;border:5px solid #fff;box-shadow:0 3px 10px #0005;font-size:clamp(19px,5vw,30px);font-weight:900}
+#game .panel:nth-child(2){grid-column:1;position:sticky;top:0;margin-top:0}
+#game .panel:nth-child(3){grid-column:2;margin-top:0}
+#balls{gap:3px}
+.ball{border-radius:3px;font-size:clamp(10px,2.8vw,16px);aspect-ratio:1}
+.ticket{padding:9px 8px 0;overflow:hidden;margin:8px 0 14px;border-radius:18px}
+.ticket-letters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin-bottom:8px}
+.ticket-letters .letter{display:grid;place-items:center;border-radius:5px;padding:7px 0;color:#fff;font-weight:900;font-style:italic;font-size:clamp(13px,3.5vw,20px);box-shadow:0 2px 4px #0003}
+.letter-B{background:#2563eb}.letter-I{background:#dc2626}.letter-N{background:#eab308;color:#111!important}.letter-G{background:#16a34a}.letter-O{background:#9333ea}
+.ticket .bingo{gap:5px}
+.ticket .cell{border-radius:9px;padding:clamp(7px,2vw,12px) 1px;font-size:clamp(12px,3.3vw,19px);background:#eef2f7;color:#263449;border:1px solid #cbd5e1}
+.ticket .cell.hit{background:#16a34a;color:#fff}
+.ticket .cell.free{background:#2563eb;color:#fff}
+.ticket-footer{margin:9px -8px 0;padding:7px 10px;background:#2563eb;color:white;display:flex;align-items:center;justify-content:center;gap:8px;min-height:42px}
+.ticket-footer strong{font-size:clamp(20px,5vw,30px);font-style:italic;letter-spacing:-1px}
+.ticket-footer small{font-size:10px;opacity:.8}
+#game .panel:nth-child(3) h2{display:none}
+@media(max-width:480px){
+ #game{grid-template-columns:minmax(0,.82fr) minmax(0,1fr);gap:6px}
+ #game .panel:nth-child(2),#game .panel:nth-child(3){padding:6px 4px}
+ #game .panel:first-child .stats{padding-right:66px}
+ .latest-ball-bubble{right:3px;top:0}
+ .ticket{padding:7px 6px 0}
+ .ticket-letters{gap:3px;margin-bottom:6px}
+ .ticket .bingo{gap:3px}
+ .ticket .cell{padding:7px 0}
+ .ticket-footer{margin-left:-6px;margin-right:-6px}
+}
+
 </style>
 </head>
 <body>
@@ -158,13 +196,13 @@ body{background:#0b1220;color:#f8fafc}
  <div class="panel">
   <h2>🎱 Active Gameplay</h2>
   <div class="stats">
-   <div class="stat"><small>CALLED BALLS</small><strong id="ballCount">0/75</strong></div>
-   <div class="stat"><small>NEXT DRAW</small><strong id="drawTimer">6s</strong></div>
-   <div class="stat"><small>LATEST BALL</small><strong id="latestBall">—</strong></div>
-   <div class="stat"><small>ROUND</small><strong id="gameRound">—</strong></div>
+   <div class="stat"><small>DERASH</small><strong id="derash">0.00 ETB</strong></div>
+   <div class="stat"><small>BALLS</small><strong id="ballCount">0/75</strong></div>
+   <div class="stat"><small>PLAYERS</small><strong id="playersCount">0</strong></div>
   </div>
   <p class="muted">Balls are drawn automatically by the server. Winning patterns: row, column, diagonal or four corners. Bingo is validated automatically by the server.</p>
  </div>
+ <div class="latest-ball-bubble" id="latestBallBadge">B-—</div>
  <div class="panel">
   <h2>BINGO</h2>
   <div id="balls"></div>
@@ -292,8 +330,7 @@ function renderSelection(s) {
 function renderBalls(s){
  const balls=s.balls||[];
  $("ballCount").textContent=balls.length+"/75";
- $("latestBall").textContent=s.latestBall??"—";
- $("drawTimer").textContent=(s.round?.drawCountdown??6)+"s";
+ $("latestBallBadge").textContent=s.latestBall ? "B-"+s.latestBall : "B-—";
  const called=new Set(balls);
  const box=$("balls");box.innerHTML="";
  const heads=["B","I","N","G","O"];
@@ -315,7 +352,8 @@ function renderTickets(s){
  s.tickets.forEach((ticket,index)=>{
   const slot=$(index===0?"slot1":"slot2");slot.innerHTML="#"+ticket.cardNumber+"<small>SLOT "+(index+1)+" SELECTED</small>";
   const wrap=document.createElement("div");wrap.className="ticket";
-  const title=document.createElement("h3");title.textContent="Cartela #"+ticket.cardNumber;
+  const title=document.createElement("div");title.className="ticket-letters";
+  ["B","I","N","G","O"].forEach(letter=>{const h=document.createElement("span");h.textContent=letter;h.className="letter letter-"+letter;title.appendChild(h);});
   const grid=document.createElement("div");grid.className="bingo";
   ticket.card.flat().forEach(n=>{
    const cell=document.createElement("div");cell.className="cell";
@@ -323,7 +361,10 @@ function renderTickets(s){
    else{cell.textContent=n;if(called.has(n))cell.classList.add("hit");}
    grid.appendChild(cell);
   });
-  wrap.append(title,grid);box.appendChild(wrap);
+  const footer=document.createElement("div");footer.className="ticket-footer";
+  const isWinner=(s.round?.winners||[]).some(w=>Number(w.cardNumber)===Number(ticket.cardNumber));
+  footer.innerHTML="<strong>"+(isWinner?"BINGO!":"CARTELA")+"</strong><small>#"+ticket.cardNumber+"</small>";
+  wrap.append(title,grid,footer);box.appendChild(wrap);
  });
 }
 function renderWinner(round){
@@ -350,11 +391,15 @@ function renderState(s){
  const labels=$("topStats").querySelectorAll("small");
  const values=$("topStats").querySelectorAll("strong");
  if(r?.status==="drawing"){
+  $("topStats").classList.add("game-mode");
   labels[0].textContent="DERASH";values[0].textContent=money(r.prizePoolCents);
   labels[1].textContent="BALLS";values[1].textContent=(s.balls||[]).length+"/75";
-  labels[2].textContent="PLAYERS JOINED";values[2].textContent=r.players??0;
+  labels[2].textContent="PLAYERS";values[2].textContent=r.players??0;
   $("topStats").children[3].classList.add("hidden");
+  $("derash").textContent=money(r.prizePoolCents);
+  $("playersCount").textContent=r.players??0;
  }else{
+  $("topStats").classList.remove("game-mode");
   labels[0].textContent="ROOM";values[0].textContent="VIP 💰💰";
   labels[1].textContent="SOLD";values[1].textContent=r?.sold??0;
   labels[2].textContent="TIME";values[2].textContent=(r?.countdown??30)+"s";
@@ -373,7 +418,6 @@ function renderState(s){
  }else if(r.status==="drawing"){
   showScreen("game");
   $("time").textContent=(r.drawCountdown??6)+"s";
-  $("gameRound").textContent=r.id;
   renderBalls(s);renderTickets(s);
  }else{
   showScreen("winner");
