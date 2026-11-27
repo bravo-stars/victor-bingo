@@ -363,8 +363,7 @@ function renderTickets(s){
    grid.appendChild(cell);
   });
   const footer=document.createElement("div");footer.className="ticket-footer";
-  const isWinner=(s.round?.winners||[]).some(w=>Number(w.cardNumber)===Number(ticket.cardNumber));
-  footer.innerHTML="<strong>"+(isWinner?"BINGO!":"CARTELA")+"</strong><small>#"+ticket.cardNumber+"</small>";
+  footer.innerHTML="<strong>BINGO!</strong><small>#"+ticket.cardNumber+"</small>";
   wrap.append(title,grid,footer);box.appendChild(wrap);
  });
 }
