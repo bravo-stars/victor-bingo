@@ -254,7 +254,7 @@ function drawPreviewIntoSlot(slot, number, card, index) {
  host.style.height="auto";host.style.display="block";host.style.padding="7px";
  const title=document.createElement("div");title.textContent="Cartela #"+number;title.style.cssText="font-size:12px;font-weight:800;text-align:center;color:#facc15;margin-bottom:6px";
  const grid=document.createElement("div");grid.className="bingo";
- card.flat().forEach(n=>{const cell=document.createElement("div");cell.className="cell";cell.style.padding="5px 0";cell.textContent=n===0?"FREE":n;if(n===0)cell.classList.add("free");grid.appendChild(cell);});
+ card.flat().forEach(n=>{const cell=document.createElement("div");cell.className="cell";cell.style.padding="5px 0";cell.textContent=n===0?"★":n;if(n===0)cell.classList.add("free");grid.appendChild(cell);});
  host.append(title,grid);
 }
 function renderSelectionSlots(s) {
@@ -364,7 +364,7 @@ function renderTickets(s){
   const grid=document.createElement("div");grid.className="bingo";
   ticket.card.flat().forEach(n=>{
    const cell=document.createElement("div");cell.className="cell";
-   if(n===0){cell.classList.add("free");cell.textContent="FREE";}
+   if(n===0){cell.classList.add("free");cell.textContent="★";}
    else{cell.textContent=n;if(called.has(n))cell.classList.add("hit");}
    grid.appendChild(cell);
   });
