@@ -3,7 +3,7 @@ const { Server } = require("socket.io");
 const { Bot, InlineKeyboard } = require("grammy");
 const { pool, testDbConnection, migrateDatabase } = require("./db");
 const { requireTelegramUser, verifyTelegramInitData } = require("./auth");
-const { gameTick, buyTicket, previewCard, getGameState } = require("./game");
+const { gameTick, buyTickets, previewCard, getGameState } = require("./game");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,8 +38,19 @@ app.get("/api/card-preview/:cardNumber", requireTelegramUser, async (req,res) =>
 
 app.post("/api/tickets", requireTelegramUser, async (req,res) => {
   try {
-    const result = await buyTicket(req.victorUser.telegram_id, req.body?.cardNumber ?? null);
-    res.json({ok:true,ticket:{id:result.ticket.id,cardNumber:result.ticket.card_number,card:result.ticket.card},balanceCents:result.balanceCents});
+    const result = await buyTickets(
+      req.victorUser.telegram_id,
+      req.body?.cardNumbers || []
+    );
+    res.json({
+      ok: true,
+      tickets: result.tickets.map(t => ({
+        id: t.id,
+        cardNumber: t.card_number,
+        card: t.card
+      })),
+      balanceCents: result.balanceCents
+    });
   } catch(error) {
     const messages = {
       USER_NOT_FOUND:"Player account not found.",
@@ -47,10 +58,10 @@ app.post("/api/tickets", requireTelegramUser, async (req,res) => {
       INSUFFICIENT_BALANCE:"Your Wallet balance is not enough. Please deposit first.",
       ROOM_FULL:"All Cartela numbers are sold for this round.",
       MAX_TICKETS:"You can buy a maximum of 2 Cartelas per round.",
-      INVALID_CARD:"Choose a valid Cartela number from 1 to 600.",
-      CARD_SOLD:"This Cartela has already been sold. Choose another one."
+      INVALID_CARD:"Choose 1 or 2 different Cartelas from 1 to 600.",
+      CARD_SOLD:"A selected Cartela has already been sold. Choose another one."
     };
-    res.status(400).json({error:messages[error.message] || "Could not buy Cartela."});
+    res.status(400).json({error:messages[error.message] || "Could not buy Cartelas."});
   }
 });
 
