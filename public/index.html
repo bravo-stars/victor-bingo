@@ -193,7 +193,7 @@ const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const $=id=>document.getElementById(id);
 const headers={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
-let selectedCard=null,previewCardData=null,lastRoundId=null,currentState=null,socket=null,selectionSignature=null,previewRequest=0;
+let selectedCards=[],previewCards={},lastRoundId=null,currentState=null,socket=null,selectionSignature=null;
 const money=c=>(Number(c||0)/100).toFixed(2)+" ETB";
 function setMessage(text){const el=$("message");el.textContent=text;el.classList.toggle("hidden",!text);}
 function showScreen(name){
@@ -219,50 +219,74 @@ function drawPreviewIntoSlot(slot, number, card, index) {
 function renderSelectionSlots(s) {
  const bought=s.tickets||[];
  for(let i=0;i<2;i++){
-  const t=bought[i];
-  if(t) drawPreviewIntoSlot(i===0?"slot1":"slot2",t.cardNumber,t.card,i);
-  else if(i===bought.length && selectedCard && previewCardData?.cardNumber===selectedCard)
-   drawPreviewIntoSlot(i===0?"slot1":"slot2",selectedCard,previewCardData.card,i);
-  else drawPreviewIntoSlot(i===0?"slot1":"slot2",null,null,i);
+  const slot=i===0?"slot1":"slot2";
+  if(bought[i]){
+   drawPreviewIntoSlot(slot,bought[i].cardNumber,bought[i].card,i);
+  }else{
+   const pendingIndex=i-bought.length;
+   const number=selectedCards[pendingIndex];
+   const card=number ? previewCards[number] : null;
+   drawPreviewIntoSlot(slot,number,card,i);
+  }
  }
 }
 async function loadCardPreview(number) {
- const request=++previewRequest;previewCardData=null;
- if(currentState)renderSelectionSlots(currentState);
- try{const d=await api("/api/card-preview/"+number);if(request!==previewRequest||selectedCard!==number)return;previewCardData=d;if(currentState)renderSelectionSlots(currentState);}
- catch(e){if(request===previewRequest)setMessage(e.message);}
+ try {
+  const d=await api("/api/card-preview/"+number);
+  if(!selectedCards.includes(number))return;
+  previewCards[number]=d.card;
+  if(currentState)renderSelectionSlots(currentState);
+ } catch(e) {
+  selectedCards=selectedCards.filter(x=>x!==number);
+  setMessage(e.message);
+  selectionSignature=null;
+  if(currentState)renderSelection(currentState);
+ }
 }
-function renderSelection(s){
+
+function renderSelection(s) {
  const box=$("cardSelection");
  const sold=new Set(s.round?.soldCardNumbers||[]);
  const owned=new Set((s.tickets||[]).map(t=>Number(t.cardNumber)));
- const signature=[...sold].sort((a,b)=>a-b).join(",")+"|"+[...owned].sort((a,b)=>a-b).join(",")+"|"+selectedCard;
+ const signature=[...sold].sort((a,b)=>a-b).join(",")+"|"+
+  [...owned].sort((a,b)=>a-b).join(",")+"|"+selectedCards.join(",");
  if(signature!==selectionSignature){
   selectionSignature=signature;
   box.innerHTML="";
- for(let n=1;n<=600;n++){
-  const b=document.createElement("button");
-  b.className="card-choice";
-  b.textContent=n;
-  if(owned.has(n)){b.classList.add("owned");b.disabled=true;}
-  else if(sold.has(n)){b.classList.add("sold");b.disabled=true;}
-  else if(selectedCard===n){b.classList.add("selected");}
-  b.addEventListener("click",()=>{
-   selectedCard=n;
-   previewCardData=null;
-   renderSelection(currentState);
-   loadCardPreview(n);
-  });
-  box.appendChild(b);
+  for(let n=1;n<=600;n++){
+   const b=document.createElement("button");
+   b.className="card-choice";
+   b.textContent=n;
+   if(owned.has(n)){b.classList.add("owned");b.disabled=true;}
+   else if(sold.has(n)){b.classList.add("sold");b.disabled=true;}
+   else if(selectedCards.includes(n)){b.classList.add("selected");}
+   b.addEventListener("click",()=>{
+    if(selectedCards.includes(n)){
+     selectedCards=selectedCards.filter(x=>x!==n);
+     delete previewCards[n];
+    }else{
+     if(owned.size+selectedCards.length>=2){
+      setMessage("Maximum 2 Cartelas per round.");
+      return;
+     }
+     selectedCards.push(n);
+     loadCardPreview(n);
+    }
+    selectionSignature=null;
+    renderSelection(currentState);
+   });
+   box.appendChild(b);
   }
  }
- const ownCount=(s.tickets||[]).length;\n  renderSelectionSlots(s);
- $("buy").disabled=!selectedCard||!s.round||s.round.status!=="waiting"||s.round.countdown<=0||ownCount>=2;
- $("selectionHint").textContent=ownCount>=2
-  ?"You already have the maximum of 2 Cartelas."
-  :selectedCard?("Selected Cartela #"+selectedCard+" · 10 ETB")
-  :"Green = yours · Orange = sold · Yellow = selected";
+ renderSelectionSlots(s);
+ const count=selectedCards.length;
+ $("buy").disabled=count===0||!s.round||s.round.status!=="waiting"||
+  s.round.countdown<=0||owned.size+count>2;
+ $("buy").textContent="CONFIRM "+count+" CARTELA(S) · "+(count*10)+" ETB";
+ $("selectionHint").textContent="Selected: "+count+"/2 · Total: "+(count*10)+
+  " ETB · Green = yours · Orange = sold · Yellow = selected";
 }
+
 function renderBalls(s){
  const balls=s.balls||[];
  $("ballCount").textContent=balls.length+"/75";
@@ -338,7 +362,7 @@ function renderState(s){
  $("roundNo").textContent=r?.id??"—";
  $("status").textContent=(r?.status||"WAITING").toUpperCase();
  if(!r){showScreen("lobby");$("time").textContent="30s";return;}
- if(lastRoundId!==r.id){lastRoundId=r.id;selectedCard=null;selectionSignature=null;}
+ if(lastRoundId!==r.id){lastRoundId=r.id;selectedCards=[];previewCards={};selectionSignature=null;}
  if(r.status==="waiting"){
   showScreen("lobby");
   $("time").textContent=(r.countdown??30)+"s";
@@ -368,19 +392,25 @@ async function refresh(){
  }
 }
 async function buyTicket(){
- if(!selectedCard)return;
- const cardNumber=selectedCard;
+ if(!selectedCards.length)return;
+ const cardNumbers=[...selectedCards];
  $("buy").disabled=true;
  try{
-  const result=await api("/api/tickets",{method:"POST",body:JSON.stringify({cardNumber})});
-  selectedCard=null;previewCardData=null;previewRequest++;
-  setMessage(""); // Purchase and wallet deduction continue silently.
+  await api("/api/tickets",{
+   method:"POST",
+   body:JSON.stringify({cardNumbers})
+  });
+  selectedCards=[];
+  previewCards={};
+  selectionSignature=null;
+  setMessage("");
   await refresh();
  }catch(e){
   setMessage(e.message);
   if(currentState)renderSelection(currentState);
  }
 }
+
 $("buy").addEventListener("click",buyTicket);
 if(tg?.initData){
  socket=io({auth:{initData:tg.initData},transports:["websocket","polling"]});
