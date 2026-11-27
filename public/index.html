@@ -407,6 +407,8 @@ function renderState(s){
  const values=$("topStats").querySelectorAll("strong");
  if(r?.status==="drawing"){
   $("topStats").classList.add("game-mode");
+   $("topStats").style.setProperty("display","none","important");
+   $("game").children[0].style.setProperty("display","none","important");
   labels[0].textContent="DERASH";values[0].textContent=money(r.prizePoolCents);
   labels[1].textContent="BALLS";values[1].textContent=(s.balls||[]).length+"/75";
   labels[2].textContent="PLAYERS";values[2].textContent=r.players??0;
@@ -415,6 +417,8 @@ function renderState(s){
   $("playersCount").textContent=r.players??0;
  }else{
   $("topStats").classList.remove("game-mode");
+   $("topStats").style.removeProperty("display");
+   $("game").children[0].style.removeProperty("display");
   labels[0].textContent="ROOM";values[0].textContent="VIP 💰💰";
   labels[1].textContent="SOLD";values[1].textContent=r?.sold??0;
   labels[2].textContent="TIME";values[2].textContent=(r?.countdown??30)+"s";
